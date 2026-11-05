@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
@@ -5,7 +6,11 @@ import { defineConfig } from 'vitest/config';
 // scripts/fetch-packed.mjs), so tests can also reach its internals as `smaltdb-src/...` with one copy of every class.
 const core = (path: string): string => fileURLToPath(new URL(`./node_modules/smaltdb/src/${path}`, import.meta.url));
 
+// smaltdb_version() returns smaltdb's package version, which smaltdb's build injects (scripts/build.mjs there).
+const { version } = JSON.parse(readFileSync(core('../package.json'), 'utf8')) as { version: string };
+
 export default defineConfig({
+  define: { __SMALTDB_VERSION__: JSON.stringify(version) },
   resolve: {
     alias: [
       { find: /^smaltdb$/, replacement: core('client/index.ts') },

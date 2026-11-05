@@ -2,6 +2,9 @@
 
 SQL for [smaltdb](https://github.com/stenhoor/smaltdb): the SQLite dialect, parsed and bound to smaltdb plans.
 
+Documentation: [stenhoor.github.io/smaltql](https://stenhoor.github.io/smaltql/) (guide, SQL and functions reference,
+client API). The engine is documented at [smaltdb.dev](https://smaltdb.dev).
+
 smaltdb is an embedded database engine for browsers. It runs plans, not text: a language turns its source into plans
 and registers with the engine. smaltql is that language for SQL.
 

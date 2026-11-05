@@ -25,3 +25,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # Dead links fail the docs build.
+      - run: npm run docs:build
