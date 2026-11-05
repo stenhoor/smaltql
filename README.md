@@ -11,7 +11,8 @@ The SQL you know, for [smaltdb](https://github.com/stenhoor/smaltdb).
 
 smaltql is smaltdb's SQL: the language you query the engine with, in a dialect that follows SQLite. It builds plans
 for the engine's shared plan layer, the same layer [smaltdf](https://github.com/stenhoor/smaltdf) uses, so SQL and
-dataframes get the same optimizer and the same storage. smaltdb ships with smaltql by default.
+dataframes get the same optimizer and the same storage. Install smaltql and you have a SQL database: it exports
+its own `open()`, and smaltdb itself has no language built in.
 
 - **Familiar SQL always works.** smaltql can add syntax of its own, but only on top of SQL. It never changes what
   working SQL means.
@@ -20,7 +21,7 @@ dataframes get the same optimizer and the same storage. smaltdb ships with smalt
 
 > **Status: planned.** SQL works today inside smaltdb. It moves to this repository after the last steps of smaltdb's
 > plan layer
-> ([smaltdb ADR 0015](https://github.com/stenhoor/smaltdb/blob/main/docs/adr/0015-smaltql.md), proposed). When it
+> ([smaltdb ADR 0015](https://github.com/stenhoor/smaltdb/blob/main/docs/adr/0015-smaltql.md), accepted). When it
 > publishes, the package is `@smaltworks/smaltql`.
 
 Part of [smaltworks](https://smaltworks.dev).
