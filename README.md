@@ -1,31 +1,19 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/stenhoor/smalt-brand/main/logos/smaltql/lockup-on-dark.svg">
-    <img alt="smaltql" src="https://raw.githubusercontent.com/stenhoor/smalt-brand/main/logos/smaltql/lockup.svg" width="320">
-  </picture>
-</h1>
+# smaltql
 
-**Small. Alternative. Familiar.**
+SQL for [smaltdb](https://github.com/stenhoor/smaltdb): the SQLite dialect, parsed and bound to smaltdb plans.
 
-The SQL you know, for [smaltdb](https://github.com/stenhoor/smaltdb).
+smaltdb is an embedded database engine for browsers. It runs plans, not text: a language turns its source into plans
+and registers with the engine. smaltql is that language for SQL.
 
-smaltql is smaltdb's SQL: the language you query the engine with, in a dialect that follows SQLite. It builds plans
-for the engine's shared plan layer, the same layer [smaltdf](https://github.com/stenhoor/smaltdf) uses, so SQL and
-dataframes get the same optimizer and the same storage. Install smaltql and you have a SQL database: it exports
-its own `open()`, and smaltdb itself has no language built in.
+```ts
+import { Database } from 'smaltdb/engine';
+import 'smaltql/register';
 
-- **Familiar SQL always works.** smaltql can add syntax of its own, but only on top of SQL. It never changes what
-  working SQL means.
-- **A client of the plan API.** smaltql reaches the engine only through smaltdb's public plan API, like any other
-  language.
+const db = Database.openMemory();
+db.query('SELECT 1 + 1').rows; // [[2]]
+```
 
-> **Status: planned.** SQL works today inside smaltdb. It moves to this repository after the last steps of smaltdb's
-> plan layer
-> ([smaltdb ADR 0015](https://github.com/stenhoor/smaltdb/blob/main/docs/adr/0015-smaltql.md), accepted). When it
-> publishes, the package is `@smaltworks/smaltql`.
+`smaltql` exports `sqlLanguage` (for `registerLanguage`) and the parser (`parse`, `parseOne`, `parseExpr`,
+`SqlSyntaxError`). It is in development, with smaltdb 0.9.0; neither is on npm yet.
 
-Part of [smaltworks](https://smaltworks.dev).
-
-## Licence
-
-MIT. See [LICENSE](LICENSE).
+License: MIT.

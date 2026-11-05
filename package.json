@@ -1,0 +1,68 @@
+{
+  "name": "smaltql",
+  "version": "0.9.0",
+  "description": "SQL for the smaltdb engine: the SQLite dialect, parsed and bound to smaltdb plans",
+  "keywords": [
+    "smaltdb",
+    "sql",
+    "sqlite",
+    "parser",
+    "database"
+  ],
+  "author": "stenhoor",
+  "license": "MIT",
+  "homepage": "https://github.com/stenhoor/smaltql#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stenhoor/smaltql.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stenhoor/smaltql/issues"
+  },
+  "type": "module",
+  "sideEffects": [
+    "./dist/register.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "default": "./dist/register.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "deps": "node scripts/fetch-packed.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "node scripts/fetch-packed.mjs --check && tsc -p tsconfig.json",
+    "test": "node scripts/fetch-packed.mjs --check && vitest run",
+    "check": "npm run typecheck && npm test",
+    "slt": "esbuild test/slt/run.ts --bundle --platform=node --format=esm --outfile=.cache/slt-run.mjs --log-level=warning --tsconfig=tsconfig.json && node .cache/slt-run.mjs",
+    "prepublishOnly": "npm run check && npm run build"
+  },
+  "peerDependencies": {
+    "smaltdb": ">=0.9.0 <0.10.0"
+  },
+  "peerDependenciesMeta": {
+    "smaltdb": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "typescript": "5.9",
+    "vitest": "^5.0.5"
+  }
+}
