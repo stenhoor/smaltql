@@ -21,7 +21,8 @@
   },
   "type": "module",
   "sideEffects": [
-    "./dist/register.js"
+    "./dist/register.js",
+    "./dist/worker.js"
   ],
   "engines": {
     "node": ">=20"
@@ -34,6 +35,10 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "default": "./dist/register.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "default": "./dist/worker.js"
     },
     "./package.json": "./package.json"
   },

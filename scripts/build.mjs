@@ -1,5 +1,5 @@
-// Builds dist/: index.js (the language: sqlLanguage, the parser) and register.js (registers it), sharing chunks so both
-// hold the same sqlLanguage, and their declarations. smaltdb is never bundled: `smaltdb/language` stays an import.
+// Builds dist/: index.js (the language: sqlLanguage, the parser, open()), register.js (registers it) and worker.js (the
+// engine worker open() starts), sharing chunks so all hold the same sqlLanguage, and their declarations. smaltdb is never bundled: `smaltdb/language` stays an import.
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 rmSync('dist', { recursive: true, force: true });
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 await build({
-  entryPoints: ['src/index.ts', 'src/register.ts'],
+  entryPoints: ['src/index.ts', 'src/register.ts', 'src/worker.ts'],
   outdir: 'dist',
   bundle: true,
   splitting: true,
