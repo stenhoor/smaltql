@@ -11,10 +11,11 @@ import { type Affinity, type StaticType, affinityOfStorage, applyNumericAffinity
 import { ARITHMETIC_FUNCTIONS, BITWISE_FUNCTIONS, COMPARISON_FUNCTIONS } from 'smaltdb/language';
 import { type Fn, type FunctionContext, aggregateFunctions, scalarFunctions } from 'smaltdb/language';
 import { WINDOW_ARITY } from 'smaltdb/language';
-import { type SqlMeta, setMeta } from 'smaltdb/language';
+import type { SqlMeta } from 'smaltdb/language';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
-import { CollSrc, type Compiled, NO_META, type SqlOperand, collationName, comparisonCollation, comparisonConverters, compilePlanExpr, metaOf, withMeta } from 'smaltdb/language';
+import { CollSrc, type Compiled, NO_META, type SqlOperand, collationName, comparisonCollation, comparisonConverters, compilePlanExpr, metaOf } from 'smaltdb/language';
+import { setMeaning, withMeaning } from './meaning.js';
 
 export interface ColumnBinding {
   reg: number;
@@ -88,13 +89,13 @@ export function compileNode(e: Expr, scope: CompileScope): Compiled {
 /** A copy of `e` carrying the SQL metadata of `c` (the SQL front end: a select-list alias, as the planner compiled it). */
 export function withCompiledMeta(e: BoundExpr, c: Pick<Compiled, 'collation' | 'collSrc' | 'affinity'>): BoundExpr {
   const copy = { ...e };
-  setMeta(copy, { ...metaOf(e), collation: c.collation, collSrc: c.collSrc, affinity: c.affinity });
+  setMeaning(copy, { ...metaOf(e), collation: c.collation, collSrc: c.collSrc, affinity: c.affinity });
   return copy;
 }
 
 /** Mark `e` as an SQL form that code generation leaves to the closure compiler (see SqlMeta.opaque). */
 function opaque<T extends BoundExpr>(e: T): T {
-  setMeta(e, { ...metaOf(e), opaque: true });
+  setMeaning(e, { ...metaOf(e), opaque: true });
   return e;
 }
 
@@ -124,7 +125,7 @@ function bindComparison(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
 export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
   if (scope.groupRef) {
     const g = scope.groupRef(e);
-    if (g) return withMeta({ k: 'slot', reg: g.reg, type: g.type }, { collation: g.collation, collSrc: g.collation ? CollSrc.Column : CollSrc.None, affinity: g.affinity });
+    if (g) return withMeaning({ k: 'slot', reg: g.reg, type: g.type }, { collation: g.collation, collSrc: g.collation ? CollSrc.Column : CollSrc.None, affinity: g.affinity });
   }
   switch (e.kind) {
     case 'literal':
@@ -136,13 +137,13 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       if (b.bound) return b.bound;
       if (b.compiled) return native(b.compiled);
       const slot: BoundExpr = b.use ? { k: 'slot', reg: b.reg, type: b.type, use: b.use } : { k: 'slot', reg: b.reg, type: b.type };
-      return withMeta(slot, { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity });
+      return withMeaning(slot, { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity });
     }
     case 'collate': {
       const inner = bindExpr(e.expr, scope);
       const c = collationByName(e.collation);
       if (c === undefined) throw new SmaltError('SMALT_ERROR', `no such collation sequence: ${e.collation}`);
-      return withMeta({ ...inner }, { ...metaOf(inner), collation: c, collSrc: CollSrc.Explicit, opaque: true });
+      return withMeaning({ ...inner }, { ...metaOf(inner), collation: c, collSrc: CollSrc.Explicit, opaque: true });
     }
     case 'unary': {
       const x = bindExpr(e.operand, scope);
@@ -208,7 +209,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
         const { plan, column } = scope.planSubquery(e.select, 'scalar');
         const node: BoundExpr = { k: 'subquery', mode: 'scalar', plan, type: column.type, collation: collationName(column.collation) };
         // As the compiled scalar subquery: its column's collation, from a column.
-        return withMeta(node, { collation: column.collation, collSrc: column.collation ? CollSrc.Column : CollSrc.None, affinity: 'NONE' });
+        return withMeaning(node, { collation: column.collation, collSrc: column.collation ? CollSrc.Column : CollSrc.None, affinity: 'NONE' });
       }
       return native(scope.scalarSubquery(e.select), true);
     }
@@ -238,7 +239,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const affinity = st === 'ANY' ? 'NUMERIC' : affinityOfStorage(st);
       const to = st === 'ANY' || st === 'NUMERIC' ? 'num' : staticTypeOfStorage(st);
       const m = metaOf(x);
-      return withMeta({ k: 'cast', fn: CAST_FUNCTIONS[st] ?? 'sql.cast_numeric', to, arg: x }, { collation: m.collation, collSrc: m.collSrc, affinity });
+      return withMeaning({ k: 'cast', fn: CAST_FUNCTIONS[st] ?? 'sql.cast_numeric', to, arg: x }, { collation: m.collation, collSrc: m.collSrc, affinity });
     }
     case 'call':
       return bindCall(e, scope);
@@ -247,7 +248,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
 
 /** `e` with no SQL metadata, even where the node it copies had some (a compiled alias keeps its own otherwise). */
 function stripped(e: BoundExpr): BoundExpr {
-  setMeta(e, NO_META);
+  setMeaning(e, NO_META);
   return e;
 }
 
@@ -297,14 +298,14 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   if (e.over !== undefined) {
     if (!scope.windowRef) throw new SmaltError('SMALT_ERROR', `misuse of window function ${e.name}()`);
     const b = scope.windowRef(e);
-    return withMeta({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
+    return withMeaning({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
   }
   const name = e.name;
   const isAgg = aggregateFunctions.has(name) && !((name === 'min' || name === 'max') && e.args.length > 1);
   if (isAgg) {
     if (!scope.aggregateRef) throw new SmaltError('SMALT_ERROR', `misuse of aggregate function ${name}()`);
     const b = scope.aggregateRef(e);
-    return withMeta({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
+    return withMeaning({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
   }
   if (e.distinct || e.star || e.filter) throw new SmaltError('SMALT_ERROR', `DISTINCT/FILTER/* is only valid with aggregate functions`);
   if (name === 'current_time' || name === 'current_date' || name === 'current_timestamp') {
@@ -337,7 +338,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   // Collation of a function result: from its first argument when that argument carries one.
   const first = args[0] ? metaOf(args[0]) : NO_META;
   const explicit = first.collSrc === CollSrc.Explicit;
-  return withMeta(call(name, args, type), { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' });
+  return withMeaning(call(name, args, type), { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' });
 }
 
 const CAST_FUNCTIONS: Record<string, string> = { INTEGER: 'sql.cast_integer', REAL: 'sql.cast_real', TEXT: 'sql.cast_text', BLOB: 'sql.cast_blob' };
