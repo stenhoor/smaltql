@@ -12,8 +12,7 @@
  * resolves unambiguously, and the outer query does not reference it from a nested subquery. Anything
  * else is planned as before (a sub-plan), so declining to flatten is always correct.
  */
-import type { TableSchema } from 'smaltdb/language';
-import { findColumn } from 'smaltdb/language';
+import { type CatalogTable, findColumn } from './tables.js';
 import type { ColumnExpr, Expr, FromItem, JoinType, OrderingTerm, ResultColumn, SelectCoreSelect, SelectStmt, TableRef } from '../ast.js';
 import { isAggregateName } from './functions.js';
 import { and, anyNode as anyNodeIn } from '../ast-util.js';
@@ -22,7 +21,7 @@ import { and, anyNode as anyNodeIn } from '../ast-util.js';
 const anyNode = (e: unknown, pred: (x: Record<string, unknown>) => boolean): boolean => anyNodeIn(e, pred, false);
 
 export interface FlattenContext {
-  getTable(name: string, schema?: string): TableSchema | undefined;
+  getTable(name: string, schema?: string): CatalogTable | undefined;
   getView(name: string, schema?: string): { name: string; sql: string; columns?: string[]; select: SelectStmt } | undefined;
   /** Whether `name` is a CTE visible to this query (CTE references are not flattened). */
   isCte(name: string): boolean;
@@ -160,7 +159,7 @@ function expand(select: SelectStmt, columnNames: string[] | undefined, refName: 
     if (t.schema && t.schema.toLowerCase() !== 'main') decline();
     if (!t.schema && ctx.isCte(t.name)) decline();
     const table = ctx.getTable(t.name) ?? decline();
-    if (table.system) decline();
+    if (table.kind === 'system') decline();
     const ref = (t.alias ?? t.name).toLowerCase();
     return { table, ref, alias: `${tag}\u0001${t.alias ?? t.name}`, item: t };
   });
@@ -185,7 +184,7 @@ function expand(select: SelectStmt, columnNames: string[] | undefined, refName: 
     if (hasSubquery(l.on)) decline();
     // Qualified (an outer CTE of the same name must not capture it) with the schema of the table the
     // view resolved to: a TEMP table and a main table may share the name.
-    const item: TableRef = { kind: 'table', schema: leaves[i].table.temp ? 'temp' : 'main', name: leaves[i].table.name, alias: leaves[i].alias, pos: l.item.pos, end: l.item.end };
+    const item: TableRef = { kind: 'table', schema: leaves[i].table.schema, name: leaves[i].table.name, alias: leaves[i].alias, pos: l.item.pos, end: l.item.end };
     return { item, joinType: l.joinType, on: rename(l.on) };
   });
   // Output columns (expanding * and t.*).

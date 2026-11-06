@@ -3,10 +3,11 @@
  * columns by position: name resolution, view and CTE expansion, flattening, materialized-view matching and the
  * SQLite errors that go with them. Costing, access paths and operators are the physical planner's (exec/planner.ts).
  */
-import { type TableSchema, findColumn, storageTypeFor } from 'smaltdb/language';
+import { type CatalogTable, collationOf, findColumn, rowidColumn } from './tables.js';
+import { storageTypeFor } from 'smaltdb/language';
 import { SmaltError } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
-import { CollSrc } from 'smaltdb/language';
+import { CollSrc } from './meaning.js';
 import { type ColumnBinding, type CompileScope, bindExpr as bindAst, conjuncts, withCompiledMeta as withCompiledMetaBound } from './bind-expr.js';
 import { aggregateFunction, metadata, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { flattenCore, flatteningDisabled } from './flatten.js';
@@ -52,19 +53,19 @@ const NO_HIDDEN: Set<string> = new Set();
  * A table's source columns and scan columns (the rowid last when it has no alias), built once per table schema:
  * the front end only reads them, and DDL replaces the schema object.
  */
-const tableShapes = new WeakMap<TableSchema, { cols: FeColumn[]; columns: number[] }>();
-function tableShape(table: TableSchema): { cols: FeColumn[]; columns: number[] } {
+const tableShapes = new WeakMap<CatalogTable, { cols: FeColumn[]; columns: number[] }>();
+function tableShape(table: CatalogTable): { cols: FeColumn[]; columns: number[] } {
   let s = tableShapes.get(table);
   if (s === undefined) {
     const cols: FeColumn[] = table.columns.map((c) => ({
       name: c.name,
-      type: c.rowidAlias ? 'int' : staticTypeOfStorage(c.type),
-      collation: c.collation,
-      affinity: affinityOfStorage(c.type),
+      type: c.type,
+      collation: collationOf(c.collation),
+      affinity: affinityOfStorage(c.storageType),
       declType: c.declaredType,
     }));
     const columns = table.columns.map((_c, i) => i);
-    if (table.rowidAlias < 0) columns.push(-1);
+    if (rowidColumn(table) < 0) columns.push(-1);
     tableShapes.set(table, (s = { cols, columns }));
   }
   return s;
@@ -84,7 +85,7 @@ export function toPlan(stmt: SelectStmt, text: string, catalog: BindContext): Fr
 
 /**
  * INSERT, UPDATE or DELETE as a write plan (`append`, `update`, `delete`; ADR 0015 step 6): the front end resolves
- * its own target (through `catalog.writeTarget`, which refuses what may not be written), the INSERT column list and
+ * its own target (through `catalog.writeTable`, which refuses what may not be written), the INSERT column list and
  * the statement's conflict action. `source`: an INSERT … SELECT's result columns.
  */
 export function toWritePlan(stmt: InsertStmt | UpdateStmt | DeleteStmt, text: string, catalog: BindContext): FrontEndWrite & { source?: FrontEndColumn[] } {
@@ -97,7 +98,7 @@ export function toWritePlan(stmt: InsertStmt | UpdateStmt | DeleteStmt, text: st
       const merged = sel.with ? { ...sel.with, recursive: sel.with.recursive || stmt.with.recursive, ctes: [...stmt.with.ctes, ...sel.with.ctes] } : stmt.with;
       stmt = { ...stmt, with: undefined, source: { kind: 'select', select: { ...sel, with: merged } } };
     }
-    const table = catalog.writeTarget(stmt.table, stmt.schema);
+    const table = catalog.writeTable(stmt.table, stmt.schema);
     if (stmt.source.kind === 'default' && stmt.columns) throw new SmaltError('SMALT_ERROR', `0 values for ${stmt.columns.length} columns`);
     // DEFAULT VALUES supplies no values: every column takes its default. -1: the rowid (a table without an alias).
     const columns: number[] =
@@ -107,7 +108,7 @@ export function toWritePlan(stmt: InsertStmt | UpdateStmt | DeleteStmt, text: st
           ? stmt.columns.map((name) => {
               const i = findColumn(table, name);
               if (i < 0) {
-                if (ROWID_NAMES.has(name.toLowerCase()) && table.rowidAlias < 0) return -1;
+                if (ROWID_NAMES.has(name.toLowerCase()) && rowidColumn(table) < 0) return -1;
                 throw new SmaltError('SMALT_ERROR', `table ${table.name} has no column named ${name}`);
               }
               return i;
@@ -117,7 +118,7 @@ export function toWritePlan(stmt: InsertStmt | UpdateStmt | DeleteStmt, text: st
     return { plan: withConflict(fe.resolveRefs(r.plan), stmt.or), returning: r.returning, source: r.source };
   }
   if (stmt.orderBy.length || stmt.limit) throw new SmaltError('SMALT_UNSUPPORTED', `${stmt.kind === 'update' ? 'UPDATE' : 'DELETE'} ... ORDER BY/LIMIT is not supported`);
-  const table = catalog.writeTarget(stmt.table, stmt.schema);
+  const table = catalog.writeTable(stmt.table, stmt.schema);
   if (stmt.kind === 'update') {
     const r = fe.updatePlan(stmt, table);
     return { plan: withConflict(fe.resolveRefs(r.plan), stmt.or), returning: r.returning };
@@ -136,7 +137,7 @@ function withConflict(plan: PlanOp, or: string | undefined): PlanOp {
  * (ADR 0015 step 4): column `i` is `#0.i`, the rowid `#0.n` (n: the column count). `text`: the SQL the expression's
  * positions refer to (the table's or index's definition).
  */
-export function toRowExpr(e: Expr, table: TableSchema, text: string, catalog: BindContext): PlanExpr {
+export function toRowExpr(e: Expr, table: CatalogTable, text: string, catalog: BindContext): PlanExpr {
   return new FrontEnd(catalog, text).rowExpr(e, table);
 }
 
@@ -149,7 +150,7 @@ export function toValueExpr(e: Expr, text: string, catalog: BindContext): PlanEx
  * The constraint an ON CONFLICT clause (`n`th of `count`) targets: an index of `table`, -1 for its INTEGER PRIMARY
  * KEY, null for any; throws SQLite's errors.
  */
-export function upsertTarget(u: UpsertClause, n: number, count: number, table: TableSchema): number | null {
+export function upsertTarget(u: UpsertClause, n: number, count: number, table: CatalogTable): number | null {
   if (!u.target) {
     if (n !== count - 1) throw new SmaltError('SMALT_ERROR', 'a target-less ON CONFLICT clause must be the last one');
     return null;
@@ -163,7 +164,7 @@ export function upsertTarget(u: UpsertClause, n: number, count: number, table: T
     return i;
   });
   const set = new Set(cols);
-  if (cols.length === 1 && cols[0] === table.rowidAlias) return -1;
+  if (cols.length === 1 && cols[0] === rowidColumn(table)) return -1;
   const i = table.indexes.findIndex((idx) => idx.unique && idx.columns.length === set.size && idx.columns.every((c) => set.has(c.column)));
   if (i < 0) throw new SmaltError('SMALT_ERROR', 'ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint');
   return i;
@@ -313,7 +314,7 @@ class FrontEnd {
   private flatten(core: SelectCore, orderBy: OrderingTerm[], scope: FeScope | null): { core: SelectCore; orderBy: OrderingTerm[]; changed: boolean } {
     if (core.kind !== 'select' || !core.from || flatteningDisabled()) return { core, orderBy, changed: false };
     return flattenCore(core, orderBy, {
-      getTable: (n, schema) => this.catalog.getTable(n, schema),
+      getTable: (n, schema) => this.catalog.table(n, schema),
       getView: (n, schema) => sqlView(this.catalog.getView?.(n, schema)),
       isCte: (n) => scope?.findCte(n) !== undefined,
       text: this.text,
@@ -323,7 +324,7 @@ class FrontEnd {
   // ---------------------------------------------------------------- writes
 
   /** As `Database.compileInsert`: RETURNING, then the ON CONFLICT clauses, then the rows (their errors in that order). */
-  insertPlan(stmt: InsertStmt, table: TableSchema, columns: number[]): { plan: PlanOp; returning?: { name: string; type: StaticType }[]; source?: FrontEndColumn[] } {
+  insertPlan(stmt: InsertStmt, table: CatalogTable, columns: number[]): { plan: PlanOp; returning?: { name: string; type: StaticType }[]; source?: FrontEndColumn[] } {
     const ncols = table.columns.length;
     const ret = stmt.returning ? this.returning(stmt.returning, table, stmt.alias) : undefined;
     const upserts = stmt.upsert.map((u, n) => {
@@ -360,17 +361,17 @@ class FrontEnd {
       input = r.plan;
       source = r.columns;
     }
-    const plan: PlanOp = { op: 'append', table: table.name, db: table.temp ? 'temp' : 'main', input, columns, upserts, ...(ret ? { returning: ret.exprs } : {}) };
+    const plan: PlanOp = { op: 'append', table: table.name, db: table.schema, input, columns, upserts, ...(ret ? { returning: ret.exprs } : {}) };
     return { plan, returning: ret?.columns, source };
   }
 
-  updatePlan(stmt: UpdateStmt, table: TableSchema): { plan: PlanOp; returning?: { name: string; type: StaticType }[] } {
+  updatePlan(stmt: UpdateStmt, table: CatalogTable): { plan: PlanOp; returning?: { name: string; type: StaticType }[] } {
     // As `Database.planTarget`: the target (in its resolved schema), joined with the FROM sources, under the CTEs.
     const withScope = new FeScope(null);
     withScope.ctesOnly = true;
     if (stmt.with) this.registerCtes(stmt.with, withScope);
     const scope = new FeScope(stmt.with ? withScope : null);
-    const db = table.temp ? 'temp' : 'main';
+    const db = table.schema;
     const target: FromItem = { kind: 'table', pos: 0, schema: db, name: table.name, alias: stmt.alias, end: 0 };
     const item: FromItem = stmt.from ? { kind: 'join', joinType: 'INNER', natural: false, left: target, right: stmt.from, pos: 0, end: 0 } : target;
     const input = this.from(item, stmt.where, scope);
@@ -393,13 +394,13 @@ class FrontEnd {
     return { plan, returning: ret?.columns };
   }
 
-  deletePlan(stmt: DeleteStmt, table: TableSchema): { plan: PlanOp; returning?: { name: string; type: StaticType }[] } {
+  deletePlan(stmt: DeleteStmt, table: CatalogTable): { plan: PlanOp; returning?: { name: string; type: StaticType }[] } {
     // As `Database.planTarget`: the target (in its resolved schema) in a scope under the statement's CTEs.
     const withScope = new FeScope(null);
     withScope.ctesOnly = true;
     if (stmt.with) this.registerCtes(stmt.with, withScope);
     const scope = new FeScope(stmt.with ? withScope : null);
-    const db = table.temp ? 'temp' : 'main';
+    const db = table.schema;
     const input = this.from({ kind: 'table', pos: 0, schema: db, name: table.name, alias: stmt.alias, end: 0 }, stmt.where, scope);
     const rowid = scope.sources[0].rowid!;
     const ret = stmt.returning ? this.returning(stmt.returning, table, stmt.alias) : undefined;
@@ -411,7 +412,7 @@ class FrontEnd {
    * A write's RETURNING list over one row of `table` (its columns, then its rowid), as `Database.compileReturning`
    * binds it (`Database.rowScope`).
    */
-  private returning(list: ResultColumn[], table: TableSchema, alias: string | undefined): { exprs: PlanExpr[]; columns: { name: string; type: StaticType }[] } {
+  private returning(list: ResultColumn[], table: CatalogTable, alias: string | undefined): { exprs: PlanExpr[]; columns: { name: string; type: StaticType }[] } {
     const cs = this.rowScope([{ table, names: [alias ?? table.name, table.name], offset: 0 }]);
     const exprs: PlanExpr[] = [];
     const columns: { name: string; type: StaticType }[] = [];
@@ -437,7 +438,7 @@ class FrontEnd {
     return { exprs, columns };
   }
 
-  rowExpr(e: Expr, table: TableSchema): PlanExpr {
+  rowExpr(e: Expr, table: CatalogTable): PlanExpr {
     return this.resolveExpr(bindExpr(e, this.rowScope([{ table, names: [table.name], offset: 0 }])));
   }
 
@@ -450,7 +451,7 @@ class FrontEnd {
    * source's columns, then its rowid, from `offset` in the row; unqualified names resolve to the first source that
    * has the column. Subqueries see no enclosing columns.
    */
-  private rowScope(sources: { table: TableSchema; names: string[]; offset: number }[]): CompileScope {
+  private rowScope(sources: { table: CatalogTable; names: string[]; offset: number }[]): CompileScope {
     const outer = this.compileScope(new FeScope(null));
     const bind = (src: (typeof sources)[number], name: string): ColumnBinding | null => {
       const i = src.table.columns.findIndex((c) => sameName(c.name, name));
@@ -460,9 +461,9 @@ class FrontEnd {
       let affinity: Affinity;
       if (i >= 0) {
         const c = src.table.columns[i];
-        type = c.rowidAlias ? 'int' : c.type === 'INTEGER' ? 'int' : c.type === 'REAL' ? 'real' : c.type === 'TEXT' ? 'text' : c.type === 'BLOB' ? 'blob' : 'any';
-        affinity = (c.type === 'ANY' || c.type === 'BLOB' ? 'BLOB' : c.type) as Affinity;
-        collation = c.collation;
+        type = c.type;
+        affinity = affinityOfStorage(c.storageType);
+        collation = collationOf(c.collation);
         at = src.offset + i;
       } else if (ROWID_NAMES.has(name.toLowerCase())) {
         type = 'int';
@@ -1133,16 +1134,17 @@ class FrontEnd {
       return sub.plan;
     }
     if (item.schema && !['main', 'temp'].includes(item.schema.toLowerCase())) throw new SmaltError('SMALT_ERROR', `unknown database ${item.schema}`);
-    const table = this.catalog.getTable(item.name, item.schema);
+    const table = this.catalog.table(item.name, item.schema);
     if (!table) throw new SmaltError('SMALT_ERROR', `no such table: ${item.schema ? `${item.schema}.` : ''}${item.name}`);
     if (typeof item.indexedBy === 'string' && !table.indexes.some((i) => sameName(i.name, item.indexedBy!))) throw new SmaltError('SMALT_ERROR', `no such index: ${item.indexedBy}`);
     const name = item.alias ?? table.name;
     for (const s of scope.sources) if (sameName(s.name, name)) throw new SmaltError('SMALT_ERROR', `ambiguous table name: ${name}`);
     const { cols, columns } = tableShape(table);
     const n = table.columns.length;
-    const hasAlias = table.rowidAlias >= 0;
-    this.push(scope, { name, cols, offset: 0, rowid: hasAlias ? table.rowidAlias : n, position, width: hasAlias ? n : n + 1, hidden: NO_HIDDEN });
-    const db = table.temp ? 'temp' : item.schema?.toLowerCase() === 'main' ? 'main' : undefined;
+    const rowid = rowidColumn(table);
+    const hasAlias = rowid >= 0;
+    this.push(scope, { name, cols, offset: 0, rowid: hasAlias ? rowid : n, position, width: hasAlias ? n : n + 1, hidden: NO_HIDDEN });
+    const db = table.schema === 'temp' ? 'temp' : item.schema?.toLowerCase() === 'main' ? 'main' : undefined;
     const scan: Mutable<Extract<PlanOp, { op: 'scan' }>> = db ? { op: 'scan', table: table.name, db, columns } : { op: 'scan', table: table.name, columns };
     if (item.indexedBy !== undefined) scan.indexedBy = item.indexedBy;
     return scan;

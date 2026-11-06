@@ -3,7 +3,9 @@
  * an `IndexDef`, with SQLite's rules for what they may contain. Expressions are bound to plan expressions over the
  * table's row; their text is kept beside them.
  */
-import { type IndexSchema, type TableSchema, storageTypeFor, tableSchemaFromDef } from 'smaltdb/language';
+import { describeTableDef } from 'smaltdb/language';
+import type { CatalogTable } from './tables.js';
+import { storageTypeFor } from 'smaltdb/language';
 import { SmaltError } from 'smaltdb/language';
 import { scalarFunction } from './functions.js';
 import type { BindContext } from 'smaltdb/language';
@@ -194,27 +196,27 @@ export function toTableDef(stmt: CreateTableStmt, text: string, catalog: BindCon
  */
 export function withBoundChecks(def: TableDef, stmt: CreateTableStmt, text: string, catalog: BindContext): TableDef {
   if (def.checks.length === 0) return def;
-  const row = tableSchemaFromDef(def, text, 0).table;
+  const row = describeTableDef(def, { language: 'sql', text });
   const exprs = [...stmt.columns.flatMap((c) => c.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))), ...stmt.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))];
   return { ...def, checks: def.checks.map((c, i) => ({ ...c, expr: toRowExpr(exprs[i], row, text, catalog) })) };
 }
 
 /** The parsed CREATE TABLE of each table object (SQL's own cache: the engine keeps no syntax trees). */
-const parsedTables = new WeakMap<TableSchema, CreateTableStmt>();
+const parsedTables = new WeakMap<CatalogTable, CreateTableStmt>();
 
 /**
  * A stored table's CHECK and DEFAULT expressions bound over `table` (the table its definition gave): what opening left
  * unbound, bound where first used. A failure is the binder's error.
  */
-export function bindStoredTableExprs(table: TableSchema, catalog: BindContext): { checks: PlanExpr[]; defaults: (PlanExpr | null)[] } {
+export function bindStoredTableExprs(table: CatalogTable, catalog: BindContext): { checks: PlanExpr[]; defaults: (PlanExpr | null)[] } {
   let stmt = parsedTables.get(table);
-  if (!stmt) parsedTables.set(table, (stmt = parseOne(table.sql).stmt as CreateTableStmt));
+  if (!stmt) parsedTables.set(table, (stmt = parseOne(table.source.text).stmt as CreateTableStmt));
   const checks = [...stmt.columns.flatMap((c) => c.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))), ...stmt.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))];
   return {
-    checks: checks.map((e) => toRowExpr(e, table, table.sql, catalog)),
+    checks: checks.map((e) => toRowExpr(e, table, table.source.text, catalog)),
     defaults: stmt.columns.map((c) => {
       const d = c.constraints.find((k) => k.kind === 'default') as { expr: Expr } | undefined;
-      return d ? toValueExpr(d.expr, table.sql, catalog) : null;
+      return d ? toValueExpr(d.expr, table.source.text, catalog) : null;
     }),
   };
 }
@@ -243,7 +245,7 @@ export function tableStorage(stmt: CreateTableStmt): 'row' | 'columnar' {
  * CREATE INDEX as an index definition on `table`, with SQLite's rules: expressions and the partial WHERE may hold no
  * subqueries, parameters or non-deterministic functions. Expressions are bound over the table's row.
  */
-export function toIndexDef(stmt: CreateIndexStmt, text: string, table: TableSchema, catalog: BindContext): IndexDef {
+export function toIndexDef(stmt: CreateIndexStmt, text: string, table: CatalogTable, catalog: BindContext): IndexDef {
   if (stmt.include?.length) throw new SmaltError('SMALT_UNSUPPORTED', 'INCLUDE columns are not supported yet');
   const rowExpr = (e: Expr, what: string): ExprDef => {
     checkIndexExpr(e, what);
@@ -259,12 +261,11 @@ export function toIndexDef(stmt: CreateIndexStmt, text: string, table: TableSche
     if (col.table && col.table.toLowerCase() !== table.name.toLowerCase()) throw new SmaltError('SMALT_ERROR', `no such column: ${col.table}.${col.name}`);
     const index = table.columns.findIndex((c) => c.name.toLowerCase() === col.name.toLowerCase());
     if (index < 0) throw new SmaltError('SMALT_ERROR', `no such column: ${col.name}`);
-    return { column: index, desc: ic.desc, collation: collationName(indexedColumnCollation(ic), COLLATION_NAMES[table.columns[index].collation]) };
+    return { column: index, desc: ic.desc, collation: collationName(indexedColumnCollation(ic), table.columns[index].collation) };
   });
   return { name: stmt.name, table: table.name, columns, unique: stmt.unique, ...(stmt.where ? { where: rowExpr(stmt.where, 'partial index WHERE clauses') } : {}) };
 }
 
-const COLLATION_NAMES: readonly CollationName[] = ['binary', 'nocase', 'rtrim'];
 
 /** SQLite's rules for index expressions and partial-index WHERE clauses. */
 function checkIndexExpr(e: Expr, what: string): void {
@@ -286,8 +287,6 @@ function checkIndexExpr(e: Expr, what: string): void {
   go(e);
 }
 
-/** An index of a stored table as the planner and writers use it. */
-export type { IndexSchema };
 
 /**
  * ALTER TABLE as the change it makes (plan/schema.ts `AlterAction`). ADD COLUMN's column is bound here: its DEFAULT,
@@ -301,7 +300,7 @@ export function toAlterAction(stmt: AlterTableStmt, text: string, catalog: BindC
   const columnText = text.slice(def.pos, def.end);
   const placeholder: ColumnDef = { name: def.name, declaredType: def.type ?? '', type: storageTypeFor(def.type), notNull: false, collation: 'binary' };
   const unbound = (invalid?: DeferredError): AlterAction => ({ kind: 'addColumn', column: placeholder, checks: [], foreignKeys: [], text: columnText, ...(invalid ? { invalid } : {}) });
-  const table = catalog.getTable(stmt.table, stmt.schema);
+  const table = catalog.table(stmt.table, stmt.schema);
   const fail = (e: unknown, prefix = ''): AlterAction => {
     if (!(e instanceof SmaltError)) throw e;
     return unbound({ code: e.code, message: prefix + e.message });
@@ -330,7 +329,7 @@ export function toAlterAction(stmt: AlterTableStmt, text: string, catalog: BindC
   const n = table.columns.length;
   const column = added.columns[0];
   // The new row: the table's columns, then the new one (its rowid after them).
-  const row: TableSchema = { ...table, columns: [...table.columns, tableSchemaFromDef({ ...added, keys: [], checks: [], foreignKeys: [] }, '', 0).table.columns[0]] };
+  const row: CatalogTable = { ...table, columns: [...table.columns, describeTableDef({ ...added, keys: [], checks: [], foreignKeys: [] }, { language: 'sql', text: '' }).columns[0]] };
   const checkAsts = cons(def, 'check') as { expr: Expr }[];
   let checks: CheckDef[];
   try {

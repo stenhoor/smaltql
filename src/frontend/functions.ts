@@ -3,7 +3,8 @@
  * metadata from `engineFunctions` (the same for every database), and what the engine computes for a bound expression
  * from the statement's `BindContext.catalog`.
  */
-import { type Affinity, type BoundExpr, type Catalog, type CatalogFunction, CollSrc, Collation, type StaticType, engineFunctions } from 'smaltdb/language';
+import { type Affinity, type BoundExpr, type Catalog, type CatalogFunction, Collation, type StaticType, engineFunctions } from 'smaltdb/language';
+import { CollSrc } from './meaning.js';
 
 /** True when `name` is an aggregate function (`min` and `max` of one argument; of several they are scalars). */
 export const isAggregateName = (name: string): boolean => engineFunctions.function(name, 'aggregate') !== undefined;

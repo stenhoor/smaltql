@@ -64,7 +64,7 @@ export function bindStatement(ps: ParsedStatement, catalog: BindContext, receive
       return { kind: 'schema', op: { op: 'createTable', table: def, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), temp: stmt.temp, ifNotExists: stmt.ifNotExists, source: sql(ps) } };
     }
     case 'createIndex': {
-      const table = catalog.indexTarget(stmt.table, stmt.schema);
+      const table = catalog.indexTable(stmt.table, stmt.schema);
       return { kind: 'schema', op: { op: 'createIndex', index: toIndexDef(stmt, ps.text, table, catalog), ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), ifNotExists: stmt.ifNotExists, source: sql(ps) } };
     }
     case 'createView':
