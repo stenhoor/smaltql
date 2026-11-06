@@ -2,7 +2,7 @@
  * Helpers over SQL syntax trees (sql/ast.ts) that the SQL front end uses: structural equality, walking expressions,
  * finding aggregate and window calls, and whether a SELECT reads a table.
  */
-import { aggregateFunctions } from 'smaltdb/language';
+import { isAggregateName } from './functions.js';
 import type { CallExpr, Expr, FromItem, SelectCore, SelectStmt } from '../ast.js';
 
 export function sameName(a: string, b: string): boolean {
@@ -86,7 +86,7 @@ export function walk(e: Expr, visit: (e: Expr) => boolean | void): void {
 
 /** A call that is an aggregate (not a window function, not scalar min/max of several arguments). */
 export function isAggregateCall(e: Expr): e is CallExpr {
-  return e.kind === 'call' && aggregateFunctions.has(e.name) && !((e.name === 'min' || e.name === 'max') && e.args.length > 1) && e.over === undefined;
+  return e.kind === 'call' && isAggregateName(e.name) && !((e.name === 'min' || e.name === 'max') && e.args.length > 1) && e.over === undefined;
 }
 
 export function containsAggregate(e: Expr | undefined): boolean {

@@ -15,7 +15,7 @@
 import type { TableSchema } from 'smaltdb/language';
 import { findColumn } from 'smaltdb/language';
 import type { ColumnExpr, Expr, FromItem, JoinType, OrderingTerm, ResultColumn, SelectCoreSelect, SelectStmt, TableRef } from '../ast.js';
-import { aggregateFunctions } from 'smaltdb/language';
+import { isAggregateName } from './functions.js';
 import { and, anyNode as anyNodeIn } from '../ast-util.js';
 
 /** Whether any node of `e` satisfies `pred`, not looking inside nested SELECT statements. */
@@ -126,7 +126,7 @@ function identifiersIn(s: SelectStmt): Set<string> {
 
 const hasSubquery = (e: Expr | undefined): boolean => anyNode(e, (x) => (x.kind === 'subquery' || x.kind === 'exists' || x.kind === 'inSelect') && 'select' in x);
 const hasAggregateOrWindow = (e: Expr | undefined): boolean =>
-  anyNode(e, (x) => x.kind === 'call' && (x.over !== undefined || (aggregateFunctions.has(String(x.name)) && !((x.name === 'min' || x.name === 'max') && (x.args as unknown[]).length > 1))));
+  anyNode(e, (x) => x.kind === 'call' && (x.over !== undefined || (isAggregateName(String(x.name)) && !((x.name === 'min' || x.name === 'max') && (x.args as unknown[]).length > 1))));
 const hasVolatile = (e: Expr | undefined): boolean => anyNode(e, (x) => x.kind === 'call' && VOLATILE.has(String(x.name)));
 
 /** A derived source reduced to base tables: what replaces it in the outer FROM. */

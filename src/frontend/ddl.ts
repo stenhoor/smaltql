@@ -5,7 +5,7 @@
  */
 import { type IndexSchema, type TableSchema, storageTypeFor, tableSchemaFromDef } from 'smaltdb/language';
 import { SmaltError } from 'smaltdb/language';
-import { scalarFunctions } from 'smaltdb/language';
+import { scalarFunction } from './functions.js';
 import type { BindContext } from 'smaltdb/language';
 import type { PlanExpr } from 'smaltdb/language';
 import type { ConflictAction } from 'smaltdb/language';
@@ -276,8 +276,8 @@ function checkIndexExpr(e: Expr, what: string): void {
     if (o.kind === 'param') throw new SmaltError('SMALT_ERROR', `parameters prohibited in ${what}`);
     if (o.kind === 'call') {
       const name = String(o.name);
-      const def = scalarFunctions.get(name);
-      if ((def && !def.deterministic && !def.pureDate) || name === 'current_time' || name === 'current_date' || name === 'current_timestamp') {
+      const def = scalarFunction(name);
+      if ((def && !def.deterministic && !def.dateTime) || name === 'current_time' || name === 'current_date' || name === 'current_timestamp') {
         throw new SmaltError('SMALT_ERROR', `non-deterministic functions prohibited in ${what}`);
       }
     }

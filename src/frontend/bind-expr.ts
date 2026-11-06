@@ -1,7 +1,7 @@
 /**
  * SQL's expression binder (ADR 0014, step 3b): an expression of the parser (sql/ast.ts) bound to a plan expression,
  * with its names resolved, typed, and SQL's rules made explicit (comparison collations, affinity conversions, the
- * `sql.*` function for each operator). The engine compiles plan expressions (exec/expr.ts `compilePlanExpr`).
+ * `sql.*` function for each operator). The engine compiles plan expressions.
  */
 import { SmaltError } from 'smaltdb/language';
 import { storageTypeFor } from 'smaltdb/language';
@@ -9,12 +9,12 @@ import type { CallExpr, ColumnExpr, Expr, SelectStmt } from '../ast.js';
 import { Collation, type SqlValue, collationByName } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, applyNumericAffinity, staticTypeOfStorage } from 'smaltdb/language';
 import { ARITHMETIC_FUNCTIONS, BITWISE_FUNCTIONS, COMPARISON_FUNCTIONS } from 'smaltdb/language';
-import { type Fn, type FunctionContext, aggregateFunctions, scalarFunctions } from 'smaltdb/language';
-import { WINDOW_ARITY } from 'smaltdb/language';
+import type { Catalog, Fn } from 'smaltdb/language';
+import { isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import type { SqlMeta } from 'smaltdb/language';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
-import { CollSrc, type Compiled, NO_META, type SqlOperand, collationName, comparisonCollation, comparisonConverters, compilePlanExpr, metaOf } from 'smaltdb/language';
+import { CollSrc, type Compiled, NO_META, type SqlOperand, collationName, comparisonCollation, comparisonConverters, metaOf } from 'smaltdb/language';
 import { setMeaning, withMeaning } from './meaning.js';
 
 export interface ColumnBinding {
@@ -45,16 +45,13 @@ export interface CompileScope {
   groupRef?(e: Expr): ColumnBinding | undefined;
   /** Result-column context of a query with window functions: maps an `f(...) OVER (...)` call to its register. */
   windowRef?(call: CallExpr): ColumnBinding;
-  scalarSubquery(select: SelectStmt): Compiled;
-  existsSubquery(select: SelectStmt): Fn;
-  /** Returns membership test: 1, 0, or NULL (SQL IN semantics) for a probe value. */
-  inSubquery(select: SelectStmt, probe: Compiled): Fn;
   /**
-   * The SQL front end (ADR 0014, step 5): plan a subquery as a nested plan instead of compiling it. Given, the binder
-   * produces `subquery` / `inSubquery` plan nodes; `column` is the scalar subquery's first result column.
+   * Plan a subquery as a nested plan: the binder produces `subquery` / `inSubquery` plan nodes; `column` is the scalar
+   * subquery's first result column.
    */
-  planSubquery?(select: SelectStmt, mode: 'scalar' | 'exists' | 'in'): { plan: PlanOp; column: { type: StaticType; collation: Collation } };
-  funcCtx: FunctionContext;
+  planSubquery(select: SelectStmt, mode: 'scalar' | 'exists' | 'in'): { plan: PlanOp; column: { type: StaticType; collation: Collation } };
+  /** The statement's catalog (smaltdb ADR 0016 section 7). */
+  catalog: Catalog;
 }
 
 function literalType(v: SqlValue, isReal: boolean | undefined): StaticType {
@@ -75,15 +72,7 @@ function isNumericType(t: StaticType): boolean {
   return t === 'int' || t === 'real' || t === 'num';
 }
 
-// ------------------------------------------------------------------ binding and compiling
-
-/**
- * The closure compiler (defines expression semantics): binds the parser's expression to a plan expression
- * (`bindExpr`), then compiles that (`compilePlanExpr`).
- */
-export function compileNode(e: Expr, scope: CompileScope): Compiled {
-  return compilePlanExpr(bindExpr(e, scope), scope.funcCtx);
-}
+// ------------------------------------------------------------------ binding
 
 
 /** A copy of `e` carrying the SQL metadata of `c` (the SQL front end: a select-list alias, as the planner compiled it). */
@@ -179,39 +168,20 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       return e.not ? opaque({ k: 'not', arg: inList }) : inList;
     }
     case 'inSelect': {
-      if (scope.planSubquery) {
-        const probe = bindExpr(e.expr, scope);
-        const sub = scope.planSubquery(e.select, 'in');
-        const node: BoundExpr = { k: 'inSubquery', probe, plan: sub.plan, collation: 'binary' };
-        return e.not ? { k: 'not', arg: node } : node;
-      }
-      const probe = compilePlanExpr(bindExpr(e.expr, scope), scope.funcCtx);
-      const test = scope.inSubquery(e.select, probe);
-      const fn: Fn = e.not
-        ? (r) => {
-            const v = test(r);
-            return v === null ? null : v === 1 ? 0 : 1;
-          }
-        : test;
-      return native({ fn, type: 'int', collation: 0, collSrc: CollSrc.None, affinity: 'NONE', constant: false }, true);
+      const probe = bindExpr(e.expr, scope);
+      const sub = scope.planSubquery(e.select, 'in');
+      const node: BoundExpr = { k: 'inSubquery', probe, plan: sub.plan, collation: 'binary' };
+      return e.not ? { k: 'not', arg: node } : node;
     }
     case 'exists': {
-      if (scope.planSubquery) {
-        const node: BoundExpr = { k: 'subquery', mode: 'exists', plan: scope.planSubquery(e.select, 'exists').plan, type: 'int', collation: 'binary' };
-        return e.not ? { k: 'not', arg: node } : node;
-      }
-      const f = scope.existsSubquery(e.select);
-      const fn: Fn = e.not ? (r) => (f(r) === 1 ? 0 : 1) : f;
-      return native({ fn, type: 'int', collation: 0, collSrc: CollSrc.None, affinity: 'NONE', constant: false }, true);
+      const node: BoundExpr = { k: 'subquery', mode: 'exists', plan: scope.planSubquery(e.select, 'exists').plan, type: 'int', collation: 'binary' };
+      return e.not ? { k: 'not', arg: node } : node;
     }
     case 'subquery': {
-      if (scope.planSubquery) {
-        const { plan, column } = scope.planSubquery(e.select, 'scalar');
-        const node: BoundExpr = { k: 'subquery', mode: 'scalar', plan, type: column.type, collation: collationName(column.collation) };
-        // As the compiled scalar subquery: its column's collation, from a column.
-        return withMeaning(node, { collation: column.collation, collSrc: column.collation ? CollSrc.Column : CollSrc.None, affinity: 'NONE' });
-      }
-      return native(scope.scalarSubquery(e.select), true);
+      const { plan, column } = scope.planSubquery(e.select, 'scalar');
+      const node: BoundExpr = { k: 'subquery', mode: 'scalar', plan, type: column.type, collation: collationName(column.collation) };
+      // As the compiled scalar subquery: its column's collation, from a column.
+      return withMeaning(node, { collation: column.collation, collSrc: column.collation ? CollSrc.Column : CollSrc.None, affinity: 'NONE' });
     }
     case 'like': {
       const x = bindExpr(e.expr, scope);
@@ -292,7 +262,6 @@ function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
   }
 }
 
-const NO_FN: Fn = () => null;
 
 function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   if (e.over !== undefined) {
@@ -301,7 +270,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
     return withMeaning({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
   }
   const name = e.name;
-  const isAgg = aggregateFunctions.has(name) && !((name === 'min' || name === 'max') && e.args.length > 1);
+  const isAgg = isAggregateName(name) && !((name === 'min' || name === 'max') && e.args.length > 1);
   if (isAgg) {
     if (!scope.aggregateRef) throw new SmaltError('SMALT_ERROR', `misuse of aggregate function ${name}()`);
     const b = scope.aggregateRef(e);
@@ -312,18 +281,18 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
     // A plain call, so plans carry no closure: the clock is read when the statement runs.
     return call(`sql.${name}`, [], 'text');
   }
-  const def = scalarFunctions.get(name);
+  const def = scalarFunction(name);
   if (!def) {
-    if (Object.hasOwn(WINDOW_ARITY, name)) {
+    const win = windowFunction(name);
+    if (win) {
       // A window-only function without OVER (SQLite checks the argument count first).
-      const [lo, hi] = WINDOW_ARITY[name];
-      if (e.args.length < lo || e.args.length > hi) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
+      if (!takesArgs(win, e.args.length)) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
       throw new SmaltError('SMALT_ERROR', `misuse of window function ${name}()`);
     }
     throw new SmaltError('SMALT_ERROR', `no such function: ${name}`);
   }
   const n = e.args.length;
-  if (n < def.minArgs || (def.maxArgs >= 0 && n > def.maxArgs)) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
+  if (!takesArgs(def, n)) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
   if (name === 'likelihood') {
     // SQLite: the probability must be a REAL literal (not an integer, not negated) from 0.0 to 1.0.
     const p = e.args[1];
@@ -331,10 +300,8 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
       throw new SmaltError('SMALT_ERROR', 'second argument to likelihood() must be a constant between 0.0 and 1.0');
   }
   const args = e.args.map((a) => bindExpr(a, scope));
-  // A function's result type follows from its arguments' types. Functions without `resultType` are compiled once
-  // to find out (compiling is cheap and never fails).
-  const info = args.map((a) => ({ fn: NO_FN, type: typeOf(a), collation: metaOf(a).collation }));
-  const type = def.resultType ? def.resultType(info) : def.compile(info, scope.funcCtx).type;
+  // A function's result type follows from its arguments' types (and collations).
+  const type = resultType(name, args.map((a) => ({ type: typeOf(a), collation: collationName(metaOf(a).collation) })));
   // Collation of a function result: from its first argument when that argument carries one.
   const first = args[0] ? metaOf(args[0]) : NO_META;
   const explicit = first.collSrc === CollSrc.Explicit;

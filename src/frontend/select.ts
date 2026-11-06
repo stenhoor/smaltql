@@ -6,10 +6,9 @@
 import { type TableSchema, findColumn, storageTypeFor } from 'smaltdb/language';
 import { SmaltError } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
-import { CollSrc, boundMetadata, compileBoundExpr } from 'smaltdb/language';
+import { CollSrc } from 'smaltdb/language';
 import { type ColumnBinding, type CompileScope, bindExpr as bindAst, conjuncts, withCompiledMeta as withCompiledMetaBound } from './bind-expr.js';
-import { aggregateFunctions, scalarFunctions } from 'smaltdb/language';
-import { NAVIGATION, RANKING, WINDOW_ARITY } from 'smaltdb/language';
+import { aggregateFunction, metadata, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { flattenCore, flatteningDisabled } from './flatten.js';
 import { sqlView } from './views.js';
 import { aggregateCallName } from '../ast-util.js';
@@ -433,7 +432,7 @@ class FrontEnd {
       if (agg) throw new SmaltError('SMALT_ERROR', `misuse of aggregate function ${agg}()`);
       const b = bindExpr(rc.expr, cs);
       exprs.push(b);
-      columns.push({ name: rc.alias ?? (rc.expr.kind === 'column' ? rc.expr.name : this.text.slice(rc.expr.pos, rc.expr.end)), type: boundMetadata(b, this.catalog.funcCtx).type });
+      columns.push({ name: rc.alias ?? (rc.expr.kind === 'column' ? rc.expr.name : this.text.slice(rc.expr.pos, rc.expr.end)), type: metadata(b, this.catalog.catalog).type });
     }
     return { exprs, columns };
   }
@@ -602,7 +601,7 @@ class FrontEnd {
         const ast = this.resolveGroupAst(g, resultCols);
         if (containsAggregate(ast)) throw new SmaltError('SMALT_ERROR', 'aggregate functions are not allowed in the GROUP BY clause');
         const bound = bindExpr(ast, baseCs);
-        const c = boundMetadata(bound, this.catalog.funcCtx);
+        const c = metadata(bound, this.catalog.catalog);
         return { ast, bound, type: c.type, collation: c.collSrc !== CollSrc.None ? c.collation : Collation.Binary, affinity: c.affinity };
       });
       const keys = groups.map((g) => ({ expr: g.bound, collation: collationName(g.collation) }));
@@ -637,15 +636,15 @@ class FrontEnd {
         },
         aggregateRef: (call) => {
           const existing = aggAsts.findIndex((x) => exprEquals(x, call));
-          const def = aggregateFunctions.get(call.name)!;
+          const def = aggregateFunction(call.name)!;
           if (existing >= 0) {
             const t = aggTypes[existing];
-            const type = def.resultType(t.argTypes);
+            const type = resultType(call.name, t.argTypes);
             return { reg: outRef(() => keyCount + existing, type, t.collation), type, collation: t.collation, affinity: 'NONE' };
           }
           if (call.star && call.name !== 'count') throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${call.name}()`);
           const n = call.args.length;
-          if (!call.star && (n < def.minArgs || n > def.maxArgs || (call.name === 'count' && n === 0))) {
+          if (!call.star && (!takesArgs(def, n) || (call.name === 'count' && n === 0))) {
             throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${call.name}()`);
           }
           const inner = call.args.map(firstAggregateCall).find((x) => x !== undefined);
@@ -663,10 +662,10 @@ class FrontEnd {
           } finally {
             scope.carry = saved;
           }
-          const compiled = args.map((x) => boundMetadata(x, this.catalog.funcCtx));
+          const compiled = args.map((x) => metadata(x, this.catalog.catalog));
           const argTypes = compiled.map((c) => c.type);
           const collation = compiled[0]?.collSrc ? compiled[0].collation : Collation.Binary;
-          const type = def.resultType(argTypes);
+          const type = resultType(call.name, argTypes);
           const at = aggs.length;
           aggs.push({ fn: call.name, args, star: call.star, distinct: call.distinct, ...(filter ? { filter } : {}), collation: collationName(collation), type });
           aggAsts.push(call);
@@ -692,7 +691,7 @@ class FrontEnd {
 
     // Result expressions.
     const bound = resultCols.map((c) => bindExpr(c.expr, exprScope));
-    const compiled = bound.map((b) => boundMetadata(b, this.catalog.funcCtx));
+    const compiled = bound.map((b) => metadata(b, this.catalog.catalog));
     if (width !== undefined && width !== bound.length) {
       throw new SmaltError('SMALT_ERROR', `SELECTs to the left and right of a compound operator do not have the same number of result columns`);
     }
@@ -715,11 +714,11 @@ class FrontEnd {
         let type: StaticType;
         if (idx >= 0) {
           pos = idx;
-          coll = t.expr.kind === 'collate' ? boundMetadata(bindExpr(t.expr, exprScope), this.catalog.funcCtx).collation : columns[idx].collation;
+          coll = t.expr.kind === 'collate' ? metadata(bindExpr(t.expr, exprScope), this.catalog.catalog).collation : columns[idx].collation;
           type = columns[idx].type;
         } else {
           const b = bindExpr(t.expr, exprScope);
-          const c = boundMetadata(b, this.catalog.funcCtx);
+          const c = metadata(b, this.catalog.catalog);
           pos = bound.length + extras.length;
           extras.push(b);
           coll = c.collSrc !== CollSrc.None ? c.collation : Collation.Binary;
@@ -765,14 +764,15 @@ class FrontEnd {
     const hit = seen.find((x) => exprEquals(x.ast, call));
     if (hit) return hit.binding;
     const name = call.name;
-    const aggDef = aggregateFunctions.get(name);
-    const builtin = WINDOW_ARITY[name];
+    const aggDef = aggregateFunction(name);
+    const windowDef = windowFunction(name);
+    const builtin = windowDef ? ([windowDef.minArgs, windowDef.maxArgs ?? Infinity] as const) : undefined;
     if (!builtin && !aggDef) {
-      if (scalarFunctions.has(name)) throw new SmaltError('SMALT_ERROR', `${name}() may not be used as a window function`);
+      if (scalarFunction(name)) throw new SmaltError('SMALT_ERROR', `${name}() may not be used as a window function`);
       throw new SmaltError('SMALT_ERROR', `no such function: ${name}`);
     }
     const n = call.args.length;
-    const [minA, maxA] = builtin ?? [aggDef!.minArgs, aggDef!.maxArgs];
+    const [minA, maxA] = builtin ?? [aggDef!.minArgs, aggDef!.maxArgs ?? Infinity];
     if (call.star ? name !== 'count' : n < minA || n > maxA || (name === 'count' && n === 0)) {
       throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
     }
@@ -784,19 +784,19 @@ class FrontEnd {
     }
     const spec = this.resolveWindowSpec(call.over!, core);
     const args = call.args.map((a) => bindExpr(a, scope));
-    const meta = args.map((a) => boundMetadata(a, this.catalog.funcCtx));
+    const meta = args.map((a) => metadata(a, this.catalog.catalog));
     const strip = (x: unknown): string => JSON.stringify(x, (k, v) => (k === 'pos' || k === 'end' ? undefined : typeof v === 'bigint' ? `${v}n` : v instanceof Uint8Array ? [...v] : v));
     const key = strip({ p: spec.partitionBy, o: spec.orderBy, f: spec.frame });
     let defIndex = defs.findIndex((d) => d.key === key);
     if (defIndex < 0) {
       const partition = spec.partitionBy.map((e) => {
         const b = bindExpr(e, scope);
-        const m = boundMetadata(b, this.catalog.funcCtx);
+        const m = metadata(b, this.catalog.catalog);
         return { expr: b, collation: collationName(m.collSrc !== CollSrc.None ? m.collation : Collation.Binary) };
       });
       const order: SortKey[] = spec.orderBy.map((t) => {
         const b = bindExpr(t.expr, scope);
-        const m = boundMetadata(b, this.catalog.funcCtx);
+        const m = metadata(b, this.catalog.catalog);
         return { expr: b, desc: t.desc, nullsFirst: t.nulls ? t.nulls === 'FIRST' : !t.desc, collation: collationName(m.collSrc !== CollSrc.None ? m.collation : Collation.Binary) };
       });
       const f = spec.frame;
@@ -818,15 +818,16 @@ class FrontEnd {
     }
     const filter = call.filter ? bindExpr(call.filter, scope) : undefined;
     const kind = builtin ? name : 'aggregate';
+    // A ranking function's type is its own (row_number, ntile: int; percent_rank, cume_dist: real); a navigation
+    // function's follows its argument.
+    const ranking = windowDef !== undefined && windowDef.result !== 'any';
     const t0 = meta[0]?.type ?? 'any';
     const type: StaticType =
       kind === 'aggregate'
-        ? aggDef!.resultType(meta.map((m) => m.type))
-        : kind === 'percent_rank' || kind === 'cume_dist'
-          ? 'real'
-          : RANKING.has(kind)
-            ? 'int'
-            : t0 === 'null'
+        ? resultType(name, meta.map((m) => m.type))
+        : ranking
+          ? windowDef.result
+          : t0 === 'null'
               ? 'any'
               : kind === 'lag' || kind === 'lead'
                 ? meta.length > 2 && meta[2].type !== t0
@@ -834,7 +835,7 @@ class FrontEnd {
                   : t0
                 : t0;
     const callCollation = kind === 'aggregate' && meta[0]?.collSrc ? meta[0].collation : Collation.Binary;
-    const collation = meta[0]?.collSrc && NAVIGATION.has(kind) ? meta[0].collation : Collation.Binary;
+    const collation = meta[0]?.collSrc && kind !== 'aggregate' && !ranking ? meta[0].collation : Collation.Binary;
     const def = defs[defIndex];
     const at = def.calls.length;
     def.calls.push({ fn: name, args, star: call.star, ...(filter ? { filter } : {}), type, collation: collationName(callCollation) });
@@ -850,7 +851,7 @@ class FrontEnd {
     for (const r of rows) if (r.length !== width) throw new SmaltError('SMALT_ERROR', 'all VALUES must have the same number of terms');
     const cs = this.compileScope(new FeScope(parent));
     const bound = rows.map((r) => r.map((e) => bindExpr(e, cs)));
-    const types = bound[0].map((b) => boundMetadata(b, this.catalog.funcCtx).type);
+    const types = bound[0].map((b) => metadata(b, this.catalog.catalog).type);
     const columns: FrontEndColumn[] = types.map((type, i) => ({ name: `column${i + 1}`, type, collation: Collation.Binary, affinity: 'NONE' }));
     let plan: PlanOp = { op: 'values', rows: bound, types };
     if (stmt && stmt.compound.length === 0 && stmt.orderBy.length) {
@@ -1155,9 +1156,9 @@ class FrontEnd {
     const cs = this.compileScope(scope);
     const constant = (e: Expr): { b: PlanExpr; v: SqlValue } => {
       const b = bindExpr(e, cs);
-      const c = compileBoundExpr(b, this.catalog.funcCtx);
-      if (!c.constant) throw new SmaltError('SMALT_ERROR', `${item.name}() arguments must be constants`);
-      return { b, v: c.fn([]) };
+      const c = this.catalog.catalog.constant(b);
+      if (!c) throw new SmaltError('SMALT_ERROR', `${item.name}() arguments must be constants`);
+      return { b, v: c.value };
     };
     const args = item.args.map(constant);
     const named = Object.entries(item.named ?? {}).map(([k, e]) => [k, constant(e)] as const);
@@ -1185,20 +1186,14 @@ class FrontEnd {
   }
 
   compileScope(scope: FeScope): CompileScope {
-    const refuse = (): never => {
-      throw new SmaltError('SMALT_INTERNAL', 'the SQL front end plans subqueries');
-    };
     return {
       resolveColumn: (e) => this.resolveColumn(e, scope),
-      scalarSubquery: refuse,
-      existsSubquery: refuse,
-      inSubquery: refuse,
       planSubquery: (select, mode) => {
         const r = this.select(select, scope);
         if (mode !== 'exists' && r.columns.length !== 1) throw new SmaltError('SMALT_ERROR', `sub-select returns ${r.columns.length} columns - expected 1`);
         return { plan: r.plan, column: { type: r.columns[0]?.type ?? 'any', collation: r.columns[0]?.collation ?? Collation.Binary } };
       },
-      funcCtx: this.catalog.funcCtx,
+      catalog: this.catalog.catalog,
     };
   }
 
@@ -1218,7 +1213,7 @@ class FrontEnd {
           this.expandingAliases.add(key);
           try {
             const b = bindExpr(aliased, s.aliasScope ?? this.compileScope(s));
-            const c = boundMetadata(b, this.catalog.funcCtx);
+            const c = metadata(b, this.catalog.catalog);
             return { reg: -1, type: c.type, collation: c.collation, affinity: c.affinity, bound: withCompiledMeta(b, c) };
           } finally {
             this.expandingAliases.delete(key);
