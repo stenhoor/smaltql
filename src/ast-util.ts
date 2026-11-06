@@ -1,7 +1,7 @@
 /**
  * Small AST helpers shared by the planner, flattening, morsel analysis and MV matching.
  */
-import { aggregateFunctions } from 'smaltdb/language';
+import { isAggregateName } from './frontend/functions.js';
 import type { Expr } from './ast.js';
 
 const NO_POS = { pos: 0, end: 0 };
@@ -42,7 +42,7 @@ export function aggregateCallName(e: Expr): string | undefined {
     if (Object.getPrototypeOf(x) !== Object.prototype) return;
     const o = x as Record<string, unknown>;
     if (o.kind === 'select' && 'core' in o) return;
-    if (o.kind === 'call' && aggregateFunctions.has(String(o.name)) && o.over === undefined && !((o.name === 'min' || o.name === 'max') && (o.args as unknown[]).length > 1)) {
+    if (o.kind === 'call' && isAggregateName(String(o.name)) && o.over === undefined && !((o.name === 'min' || o.name === 'max') && (o.args as unknown[]).length > 1)) {
       hit = String(o.name);
       return;
     }
