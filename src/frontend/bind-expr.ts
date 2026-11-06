@@ -7,23 +7,19 @@ import { SmaltError } from 'smaltdb/language';
 import { storageTypeFor } from 'smaltdb/language';
 import type { CallExpr, ColumnExpr, Expr, SelectStmt } from '../ast.js';
 import { Collation, type SqlValue, collationByName } from 'smaltdb/language';
-import { type Affinity, type StaticType, affinityOfStorage, applyNumericAffinity, staticTypeOfStorage } from 'smaltdb/language';
-import { ARITHMETIC_FUNCTIONS, BITWISE_FUNCTIONS, COMPARISON_FUNCTIONS } from 'smaltdb/language';
-import type { Catalog, Fn } from 'smaltdb/language';
+import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
+import type { Catalog } from 'smaltdb/language';
 import { isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
-import type { SqlMeta } from 'smaltdb/language';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
-import { CollSrc, type Compiled, NO_META, type SqlOperand, collationName, comparisonCollation, comparisonConverters, metaOf } from 'smaltdb/language';
-import { setMeaning, withMeaning } from './meaning.js';
+import { comparisonRule } from 'smaltdb/language';
+import { CollSrc, NO_META, type SqlMeta, collationName, metaOf, setMeaning, withMeaning } from './meaning.js';
 
 export interface ColumnBinding {
   reg: number;
   type: StaticType;
   collation: Collation;
   affinity: Affinity;
-  /** The name resolved to a select-list alias: use this compiled expression instead of a register. */
-  compiled?: Compiled;
   /**
    * Resolved with `defer`: marks the column as read (projection pushdown), for when the expression is compiled.
    * Without `defer`, resolving marks it at once.
@@ -76,7 +72,7 @@ function isNumericType(t: StaticType): boolean {
 
 
 /** A copy of `e` carrying the SQL metadata of `c` (the SQL front end: a select-list alias, as the planner compiled it). */
-export function withCompiledMeta(e: BoundExpr, c: Pick<Compiled, 'collation' | 'collSrc' | 'affinity'>): BoundExpr {
+export function withCompiledMeta(e: BoundExpr, c: Pick<SqlMeta, 'collation' | 'collSrc' | 'affinity'>): BoundExpr {
   const copy = { ...e };
   setMeaning(copy, { ...metaOf(e), collation: c.collation, collSrc: c.collSrc, affinity: c.affinity });
   return copy;
@@ -88,21 +84,20 @@ function opaque<T extends BoundExpr>(e: T): T {
   return e;
 }
 
-/** The parts of a bound expression the SQL rules for comparisons read. */
-const operand = (e: BoundExpr): SqlOperand => {
-  const m = metaOf(e);
-  return { type: typeOf(e), collation: m.collation, collSrc: m.collSrc, affinity: m.affinity };
-};
+/** SQL's comparison operators, as the engine's operations (under their `sql.*` names, until SQL moves to the behaviour names). */
+const COMPARISONS: Readonly<Record<string, string>> = { '=': 'sql.eq', '!=': 'sql.ne', '<': 'sql.lt', '<=': 'sql.le', '>': 'sql.gt', '>=': 'sql.ge', IS: 'sql.is', 'IS NOT': 'sql.is_not' };
+/** SQL's arithmetic and bitwise operators, as the engine's operations. */
+const ARITHMETIC: Readonly<Record<string, string>> = { '+': 'sql.add', '-': 'sql.sub', '*': 'sql.mul', '/': 'sql.div', '%': 'sql.mod' };
+const BITWISE: Readonly<Record<string, string>> = { '&': 'sql.bitand', '|': 'sql.bitor', '<<': 'sql.shl', '>>': 'sql.shr' };
 
-/** `left op right` with SQLite's collation and affinity rules made explicit: a collation attribute and conversion calls. */
+/**
+ * `left op right` with SQLite's collation and affinity rules made explicit: a collation attribute and conversion
+ * calls, as the engine's `comparisonRule` gives them for the operands' meaning fields.
+ */
 function bindComparison(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
-  const oa = operand(a);
-  const ob = operand(b);
-  const coll = comparisonCollation(oa, ob);
-  const [ca, cb] = comparisonConverters(oa, ob);
-  const wrap = (x: BoundExpr, conv: unknown): BoundExpr =>
-    conv === null ? x : call(conv === applyNumericAffinity ? 'sql.affinity_numeric' : 'sql.affinity_text', [x], typeOf(x));
-  return call(COMPARISON_FUNCTIONS[op], [wrap(a, ca), wrap(b, cb)], 'int', collationName(coll));
+  const rule = comparisonRule({ type: typeOf(a), carries: a.carries, affinity: a.affinity }, { type: typeOf(b), carries: b.carries, affinity: b.affinity });
+  const wrap = (x: BoundExpr, conv: 'affinity_numeric' | 'affinity_text' | null): BoundExpr => (conv === null ? x : call(`sql.${conv}`, [x], typeOf(x)));
+  return call(COMPARISONS[op], [wrap(a, rule.left), wrap(b, rule.right)], 'int', rule.collation);
 }
 
 /**
@@ -124,7 +119,6 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
     case 'column': {
       const b = scope.resolveColumn(e, true);
       if (b.bound) return b.bound;
-      if (b.compiled) return native(b.compiled);
       const slot: BoundExpr = b.use ? { k: 'slot', reg: b.reg, type: b.type, use: b.use } : { k: 'slot', reg: b.reg, type: b.type };
       return withMeaning(slot, { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity });
     }
@@ -222,10 +216,6 @@ function stripped(e: BoundExpr): BoundExpr {
   return e;
 }
 
-function native(c: Compiled, subquery = false): BoundExpr {
-  return subquery ? { k: 'native', compiled: c, type: c.type, subquery: true } : { k: 'native', compiled: c, type: c.type };
-}
-
 function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
   switch (op) {
     case 'AND':
@@ -248,7 +238,7 @@ function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
     case '%': {
       const ta = typeOf(a);
       const tb = typeOf(b);
-      return call(ARITHMETIC_FUNCTIONS[op], [a, b], ta === 'real' || tb === 'real' ? 'real' : ta === 'int' && tb === 'int' ? 'int' : 'num');
+      return call(ARITHMETIC[op], [a, b], ta === 'real' || tb === 'real' ? 'real' : ta === 'int' && tb === 'int' ? 'int' : 'num');
     }
     case '||':
       return call('sql.concat', [a, b], 'text');
@@ -256,7 +246,7 @@ function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
     case '|':
     case '<<':
     case '>>':
-      return call(BITWISE_FUNCTIONS[op], [a, b], 'int');
+      return call(BITWISE[op], [a, b], 'int');
     default:
       throw new SmaltError('SMALT_UNSUPPORTED', `operator ${op} is not supported yet`);
   }
