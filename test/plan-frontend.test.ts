@@ -140,7 +140,7 @@ describe('plans are plain data', () => {
     db.exec(sql);
     db.exec('CREATE INDEX pa ON p(a * 2) WHERE s IS NOT NULL AND rowid > 1');
     const catalog = (db as unknown as { bindContext(): BindContext }).bindContext();
-    const t = catalog.getTable('p')!;
+    const t = db.getTable('p')!;
     const def = (parseOne(sql).stmt as CreateTableStmt).columns[2].constraints.find((c) => c.kind === 'default') as { expr: Parameters<typeof toValueExpr>[0] };
     // Column i is #0.i; the rowid (and its alias) is #0.n.
     expect(t.checks.map((c) => printExpr(c.expr!))).toEqual(['sql.gt(#0.1, sql.affinity_numeric(0))', 'sql.lt(sql.affinity_numeric(length(#0.2)), #0.0)']);
