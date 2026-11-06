@@ -8,7 +8,7 @@ import { storageTypeFor } from 'smaltdb/language';
 import type { CallExpr, ColumnExpr, Expr, SelectStmt } from '../ast.js';
 import { Collation, type SqlValue, collationByName } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
-import type { Catalog, Fn } from 'smaltdb/language';
+import type { Catalog } from 'smaltdb/language';
 import { isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
