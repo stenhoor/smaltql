@@ -13,7 +13,8 @@ point, and its working rules match smaltdb's `CLAUDE.md`.
 | `npm ci && npm run deps` | Installs dependencies, then the pinned smaltdb build in `packed.json` (see below) | First, and again after every `npm ci` or `npm install` |
 | `npm run check` | `npm run typecheck` then `npm test` (vitest): what CI's `test` job runs | Before every commit |
 | `npm run slt` | The sqllogictest subset (122k records), downloaded into `.cache/slt` on first use | Changes to the parser, the binder or anything SQL means |
-| `npm run build` | `dist/`: `index.js` (the language and parser), `register.js` (registers it) and type declarations | Packaging checks |
+| `npm run build` | `dist/`: `index.js` (the language, parser and `open()`), `register.js`, `worker.js` and type declarations | Packaging checks |
+| `npm run docs:dev` | The docs site (VitePress) with live reload; `npm run docs:build` fails on dead links | Docs changes |
 
 ## Before the first publish
 
@@ -33,6 +34,11 @@ against smaltdb's published types.
 - While smaltdb's engine entry still registers the SQL it carries, tests register smaltql's after their imports
   (`test/setup.ts`), and `test/language.test.ts` checks that smaltql's is the one databases read.
 - SQL results must match SQLite: `npm run slt` stays at smaltdb's pass rate.
+- **Docs examples are tests.** `test/docs-examples.test.ts` runs every SQL example in `docs/guide` and `docs/reference`
+  (with the plugins pinned in `packed.json`), checks the result tables printed under them, and type-checks the
+  TypeScript ones. Parquet examples are marked `<!-- docs:plugin @smaltdb/parquet -->` and run in `smaltdb-parquet`.
+- The docs site deploys from `main` to GitHub Pages (`.github/workflows/docs.yml`), at `/smaltql/` until it has a domain
+  (`DOCS_BASE` in `docs/.vitepress/config.ts`). Engine, plugin and error-code pages live on smaltdb.dev: link there.
 - Don't reformat files with Prettier. No fixed sleeps in tests.
 
 ## Working rules for sessions
@@ -68,4 +74,6 @@ issue when the owner points it to one. Handle that issue in the issue itself, so
 - smaltdb pins this repository for its own tests once it stops carrying SQL (ADR 0015 step 9). A change here that
   smaltdb's tests rely on needs the pin there updated.
 - smaltui and smaltbi will import `open()` from smaltql (ADR 0015 step 9).
+- `smaltdb-parquet` runs this repository's Parquet docs examples from its `smaltql` pin: after a docs change that touches
+  them, update that pin.
 - Brand assets and voice come from `stenhoor/smalt-brand`.

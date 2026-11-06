@@ -50,6 +50,9 @@
   "scripts": {
     "deps": "node scripts/fetch-packed.mjs",
     "build": "node scripts/build.mjs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "typecheck": "node scripts/fetch-packed.mjs --check && tsc -p tsconfig.json",
     "test": "node scripts/fetch-packed.mjs --check && vitest run",
     "check": "npm run typecheck && npm test",
@@ -68,6 +71,7 @@
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
     "typescript": "5.9",
+    "vitepress": "1.6.4",
     "vitest": "^5.0.5"
   }
 }
