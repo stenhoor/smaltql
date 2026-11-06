@@ -2,7 +2,6 @@
  * SQL as a language of the engine (ADR 0015 section 3, plan/language.ts): views written in SQL bound to plans, the
  * names they read, their query text, and the source editor ALTER TABLE uses.
  */
-import { SmaltError } from 'smaltdb/language';
 import type { LanguageStatement, ObjectReference, SmaltLanguage } from 'smaltdb/language';
 import type { BindContext } from 'smaltdb/language';
 import type { BoundStatement } from 'smaltdb/language';
@@ -60,10 +59,6 @@ export const sqlLanguage: SmaltLanguage = {
   parse: (source) => parse(source).map((ps) => new SqlStatement(ps)),
   parseOne: (source) => new SqlStatement(parseOne(source)),
   bindTableExprs: (table, ctx) => bindStoredTableExprs(table, ctx),
-  // The engine binds a table's stored expressions with bindTableExprs (smaltdb ADR 0016 section 7).
-  bindStoredExprs: () => {
-    throw new SmaltError('SMALT_INTERNAL', 'stored table expressions are bound with bindTableExprs');
-  },
   bindView(source, ctx) {
     const r = toPlan(viewSelect(source), source.text, ctx);
     return { kind: 'query', plan: r.plan, columns: r.columns };
