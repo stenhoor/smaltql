@@ -124,8 +124,17 @@
   color: var(--vp-c-brand-1);
   -webkit-text-fill-color: var(--vp-c-brand-1);
 }
+/* smaltql's suffix takes the language layer's text colour (smalt-brand BRAND.md, "Colour by layer"). */
+.VPHero .name .suffix {
+  color: #981C89;
+  -webkit-text-fill-color: #981C89;
+}
+.dark .VPHero .name .suffix {
+  color: #F57FE6;
+  -webkit-text-fill-color: #F57FE6;
+}
 
-/* Tagline: keep "Small. Alternative. Fast." on one line where there's room; balance it on phones. */
+/* Tagline: keep "Small. Alternative. Familiar." on one line where there's room; balance it on phones. */
 .VPHero .text { text-wrap: balance; }
 @media (min-width: 640px) { .VPHero .text { font-size: 44px; line-height: 52px; } }
 @media (min-width: 960px) { .VPHero .text { font-size: 50px; line-height: 58px; } }

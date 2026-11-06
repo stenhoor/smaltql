@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: 'sm<span class="alt">alt</span>ql'
-  text: Small. Alternative. Fast.
-  tagline: SQL for smaltdb, a fast alternative database for the browser, written in TypeScript.
+  name: 'sm<span class="alt">alt</span><span class="suffix">ql</span>'
+  text: Small. Alternative. Familiar.
+  tagline: The SQL you know, for smaltdb.
   image:
-    light: /grain-mark.svg
-    dark: /grain-mark-on-dark.svg
+    light: /star-mark.svg
+    dark: /star-mark-on-dark.svg
     alt: smaltql
   actions:
     - theme: brand

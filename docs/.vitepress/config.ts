@@ -44,9 +44,8 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    // smalt-brand has no smaltql lockup yet: the grain mark with the name as text.
-    logo: { light: '/grain-mark.svg', dark: '/grain-mark-on-dark.svg', alt: 'smaltql' },
-    siteTitle: 'smaltql',
+    logo: { light: '/lockup.svg', dark: '/lockup-on-dark.svg', alt: 'smaltql' },
+    siteTitle: false,
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'SQL', link: '/reference/sql/' },
