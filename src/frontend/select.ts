@@ -1073,7 +1073,7 @@ class FrontEnd {
         : { op: 'source', kind: 'function', name: item.name, args, types: cols.map((c) => c.type) };
     }
     const view =
-      item.kind === 'table' && (!item.schema || ['main', 'temp'].includes(item.schema.toLowerCase())) && !(!item.schema && scope.findCte(item.name)) && !this.catalog.getTable(item.name, item.schema)
+      item.kind === 'table' && (!item.schema || ['main', 'temp'].includes(item.schema.toLowerCase())) && !(!item.schema && scope.findCte(item.name)) && !this.catalog.table(item.name, item.schema)
         ? sqlView(this.catalog.getView?.(item.name, item.schema))
         : undefined;
     if (item.kind === 'subquery' || view || (item.kind === 'table' && !item.schema && scope.findCte(item.name))) {
