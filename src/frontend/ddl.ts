@@ -209,14 +209,17 @@ const parsedTables = new WeakMap<CatalogTable, CreateTableStmt>();
  * unbound, bound where first used. A failure is the binder's error.
  */
 export function bindStoredTableExprs(table: CatalogTable, catalog: BindContext): { checks: PlanExpr[]; defaults: (PlanExpr | null)[] } {
+  // The engine asks only for tables with source text: one defined without it holds bound expressions (ADR 0016 section 6).
+  const source = table.source;
+  if (!source) throw new SmaltError('SMALT_INTERNAL', `table ${table.name} has no source text to bind its expressions from`);
   let stmt = parsedTables.get(table);
-  if (!stmt) parsedTables.set(table, (stmt = parseOne(table.source.text).stmt as CreateTableStmt));
+  if (!stmt) parsedTables.set(table, (stmt = parseOne(source.text).stmt as CreateTableStmt));
   const checks = [...stmt.columns.flatMap((c) => c.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))), ...stmt.constraints.flatMap((k) => (k.kind === 'check' ? [k.expr] : []))];
   return {
-    checks: checks.map((e) => toRowExpr(e, table, table.source.text, catalog)),
+    checks: checks.map((e) => toRowExpr(e, table, source.text, catalog)),
     defaults: stmt.columns.map((c) => {
       const d = c.constraints.find((k) => k.kind === 'default') as { expr: Expr } | undefined;
-      return d ? toValueExpr(d.expr, table.source.text, catalog) : null;
+      return d ? toValueExpr(d.expr, source.text, catalog) : null;
     }),
   };
 }
