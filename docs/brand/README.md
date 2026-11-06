@@ -1,19 +1,17 @@
-# smaltdb brand assets
+# smaltql brand assets
 
-**Small. Alternative. Fast.** The name reads as *sm* (small) + *alt* (alternative) + *db* (database), and smalt is the cobalt-glass pigment `#003399`.
+Copied from [`stenhoor/smalt-brand`](https://github.com/stenhoor/smalt-brand) `logos/smaltql/` (commit `76386bb`).
+Don't edit them here: change them in smalt-brand and copy them again.
+
+**Small. Alternative. Familiar.** The SQL you know, for smaltdb. smaltql is a language, so its colour is the language
+layer's cobalt magenta (`#B0249F`; text `#981C89`, on dark `#F57FE6`). `alt` stays smalt `#003399`.
 
 | File | Use |
 | --- | --- |
-| `lockup.svg` / `lockup-on-dark.svg` | Grain mark + wordmark. README headers, docs, slides. |
-| `wordmark.svg` / `wordmark-on-dark.svg` | Wordmark alone, with `alt` in smalt. |
-| `grain-mark.svg` / `grain-mark-on-dark.svg` | The mark alone. |
-| `app-icon.svg` | App/PWA icons, social avatars. |
+| `lockup.svg` / `lockup-on-dark.svg` | Star mark + wordmark. README header, the docs nav. |
+| `wordmark.svg` / `wordmark-on-dark.svg` | Wordmark alone. |
+| `star-mark.svg` / `star-mark-on-dark.svg` | The Star (`*`) mark alone. The docs hero. |
+| `app-icon.svg` | App icons, social avatars. |
 | `favicon-32.svg`, `favicon-16.svg` | Browser tabs. |
 
 The `-on-dark` files are transparent with light ink: they are for dark backgrounds only and look blank in light previews.
-
-The wordmark is Martian Mono 600 (SIL Open Font License) converted to paths, so no font is needed.
-
-Colours: smalt `#003399`, chip `#7B97D4`, ink `#151922`; on dark, `#9DB4F5`, `#D6E0F3` and `#E9EBF0`.
-
-Don't recolour, rotate, outline or add effects to the marks, and keep the light files off dark backgrounds.

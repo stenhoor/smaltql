@@ -1,4 +1,11 @@
-# smaltql
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-on-dark.svg">
+    <img alt="smaltql" src="docs/brand/lockup.svg" width="320">
+  </picture>
+</h1>
+
+**Small. Alternative. Familiar.** The SQL you know, for smaltdb.
 
 SQL for [smaltdb](https://github.com/stenhoor/smaltdb): the SQLite dialect, parsed and bound to smaltdb plans.
 
