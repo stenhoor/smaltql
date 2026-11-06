@@ -15,7 +15,7 @@ import { sqlView } from './views.js';
 import { aggregateCallName } from '../ast-util.js';
 import { containsAggregate, containsWindow, coreReferences, exprEquals, firstAggregateCall, firstWindowCall, sameName, selectReferences } from './ast-helpers.js';
 import { type BoundExpr, type PlanExpr, typeOf } from 'smaltdb/language';
-import { getMeta, markFlattened, setMeta } from 'smaltdb/language';
+import { copyMeaning, noDecorrelate } from './meaning.js';
 import type { AggCall, ConflictAction, JoinKind, PlanOp, SortKey, WindowCall, WindowFrame } from 'smaltdb/language';
 import type { BindContext } from 'smaltdb/language';
 import type { CollationName } from 'smaltdb/language';
@@ -283,7 +283,7 @@ class FrontEnd {
       const s = f.changed ? { ...stmt, core: f.core, orderBy: f.orderBy } : stmt;
       const r = this.core(f.core, base, s, undefined);
       const plan = this.limit(r.plan, s, base);
-      if (f.changed) markFlattened(plan);
+      if (f.changed) noDecorrelate(plan);
       return { plan, columns: r.columns };
     }
     const first = this.core(this.flatten(stmt.core, [], base).core, base, null, undefined);
@@ -1391,8 +1391,7 @@ class FrontEnd {
         if (!r) throw new SmaltError('SMALT_INTERNAL', 'a register the front end does not know reached a plan');
         // The slot's SQL metadata (collation source, affinity) stays with the column, for the physical planner.
         const c: PlanExpr = { k: 'col', input: r.input, index: r.index(), depth: r.depth, type: r.type, collation: collationName(r.collation) };
-        const m = getMeta(e);
-        if (m) setMeta(c, m);
+        copyMeaning(e, c);
         return c;
       }
       case 'call':
