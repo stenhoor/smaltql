@@ -987,13 +987,13 @@ class FrontEnd {
         scope.onSource = -1;
       }
       const kind: JoinKind = it.joinType === 'LEFT' ? 'left' : it.joinType === 'RIGHT' ? 'right' : it.joinType === 'FULL' ? 'full' : parts.length ? 'inner' : 'cross';
-      const on = parts.length ? parts.reduce((x, y) => ({ k: 'and', args: [x, y] })) : undefined;
+      const on = parts.length ? parts.reduce((x, y) => ({ k: 'and', type: 'int', args: [x, y] })) : undefined;
       root = on ? { op: 'join', kind, inputs: [root, inputs[p]], on } : { op: 'join', kind, inputs: [root, inputs[p]] };
     }
     const filters = [...later, ...(where ? [where] : [])];
     if (filters.length) {
       const cs = this.compileScope(scope);
-      const pred = filters.map((e) => bindExpr(e, cs)).reduce((x, y) => ({ k: 'and', args: [x, y] }));
+      const pred = filters.map((e) => bindExpr(e, cs)).reduce((x, y) => ({ k: 'and', type: 'int', args: [x, y] }));
       root = { op: 'filter', input: root, pred };
     }
     return root;
