@@ -15,6 +15,25 @@ smaltdb has no separate date or time storage type. Dates and times are stored as
 
 All of them take a [time value](#time-values) followed by zero or more [modifiers](#modifiers), applied from left to right. Times are UTC unless you use the `localtime` modifier.
 
+## Date and time columns {#columns}
+
+SQL has no date types, but a table defined by another language (such as [smaltdf](https://stenhoor.github.io/smaltdf/))
+or a Parquet file can have `date`, `datetime`, `time` and `duration` columns
+([smaltdb ADR 0019](https://smaltdb.dev/adr/0019-dates-and-times)). SQL reads them as their text, as SQLite would hold
+it: `2026-11-07`, `2026-11-07 12:30:00` (then `.123` or `.123456` when there is a fraction), `12:30:00`, and ISO 8601
+durations such as `P1DT2H`. The functions on this page, `||`, `LIKE`, arithmetic, `CAST` and aggregates all see that
+text, and results give it.
+
+Comparisons give what comparing the text gives. Where that is the same as comparing the values, they compare the
+values, so the engine can still use indexes and skip Parquet row groups:
+
+- two columns of the same type (`a.d < b.d`);
+- a column and a text literal written exactly as results write that type (`d > '2026-01-01'`,
+  `ts >= '2026-11-07 12:30:00'`).
+
+Other text compares as text: `ts > '2026-11-07'` is true from midnight on, as in SQLite, because `'2026-11-07 00:00:00'`
+sorts after `'2026-11-07'`.
+
 ## Rules that apply to all functions {#rules}
 
 - **NULL and errors**: if the time value or any modifier is NULL or cannot be parsed, or the result falls outside the supported range, the result is NULL. No error is raised.

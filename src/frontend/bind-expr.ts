@@ -94,10 +94,76 @@ const BITWISE: Readonly<Record<string, string>> = { '&': 'bit_and', '|': 'bit_or
  * `left op right` with SQLite's collation and affinity rules made explicit: a collation attribute and conversion
  * calls, as the engine's `comparisonRule` gives them for the operands' meaning fields.
  */
-function bindComparison(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
+function bindComparison(op: string, a0: BoundExpr, b0: BoundExpr): BoundExpr {
+  const [a, b] = temporalOperands(a0, b0);
   const rule = comparisonRule({ type: typeOf(a), carries: a.carries, affinity: a.affinity }, { type: typeOf(b), carries: b.carries, affinity: b.affinity });
   const wrap = (x: BoundExpr, conv: 'affinity_numeric' | 'affinity_text' | null): BoundExpr => (conv === null ? x : call(conv, [x], typeOf(x)));
   return call(COMPARISONS[op], [wrap(a, rule.left), wrap(b, rule.right)], 'int', rule.collation);
+}
+
+// ------------------------------------------------------------------ dates and times
+
+const TEMPORAL = new Set<string>(['date', 'datetime', 'time', 'duration']);
+const isTemporal = (t: StaticType): boolean => TEMPORAL.has(t);
+
+/** The temporal value under a date or time column's text (`cast_text(col)`), if `e` is that. */
+function temporalUnder(e: BoundExpr): BoundExpr | undefined {
+  return e.k === 'call' && e.fn === 'cast_text' && e.args.length === 1 && isTemporal(typeOf(e.args[0])) ? e.args[0] : undefined;
+}
+
+const daysIn = (y: number, m: number): number => (m === 2 ? (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28) : [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]);
+const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
+const CLOCK_TEXT = /^(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}|\d{6}))?$/;
+
+const validDate = (m: RegExpExecArray | null): boolean => m !== null && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= daysIn(+m[1], +m[2]);
+const validClock = (m: RegExpExecArray | null): boolean => {
+  if (m === null || +m[1] > 23 || +m[2] > 59 || +m[3] > 59) return false;
+  // The result text writes no fraction of 0, three digits for whole ms, else six.
+  const f = m[4];
+  return f === undefined || (f.length === 3 ? f !== '000' : !f.endsWith('000'));
+};
+
+/**
+ * Whether `text` is exactly how results write a value of type `t`. Such text compares with the values as their
+ * text does (the format is fixed-width and ordered), so the comparison can be on the values themselves.
+ */
+function isResultText(t: StaticType, text: string): boolean {
+  if (t === 'date') return validDate(DATE_TEXT.exec(text));
+  if (t === 'time') return validClock(CLOCK_TEXT.exec(text));
+  if (t === 'datetime') {
+    const sp = text.indexOf(' ');
+    return sp === 10 && validDate(DATE_TEXT.exec(text.slice(0, 10))) && validClock(CLOCK_TEXT.exec(text.slice(11)));
+  }
+  return false;
+}
+
+const TEXT_CAST: Readonly<Record<string, string>> = { date: 'cast_date', datetime: 'cast_datetime' };
+
+/**
+ * The operands of a comparison on the values of date and time columns where that gives what comparing their text
+ * gives (smaltdb ADR 0019, decision 4): two columns of the same type, or a column and a text literal in the result
+ * format (converted with `cast_date` / `cast_datetime`). Comparing values keeps indexes and zone maps usable.
+ * Anything else compares the text.
+ */
+function temporalOperands(a: BoundExpr, b: BoundExpr): [BoundExpr, BoundExpr] {
+  const ta = temporalUnder(a);
+  const tb = temporalUnder(b);
+  if (ta && tb) return typeOf(ta) === typeOf(tb) ? [ta, tb] : [a, b];
+  const asValue = (col: BoundExpr, other: BoundExpr): BoundExpr | undefined => {
+    const t = typeOf(col);
+    const fn = TEXT_CAST[t];
+    if (!fn || other.k !== 'lit' || typeof other.value !== 'string' || !isResultText(t, other.value)) return undefined;
+    return call(fn, [other], t);
+  };
+  if (ta) {
+    const v = asValue(ta, b);
+    if (v) return [ta, v];
+  }
+  if (tb) {
+    const v = asValue(tb, a);
+    if (v) return [v, tb];
+  }
+  return [a, b];
 }
 
 /**
@@ -120,7 +186,10 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const b = scope.resolveColumn(e, true);
       if (b.bound) return b.bound;
       const slot: BoundExpr = b.use ? { k: 'slot', reg: b.reg, type: b.type, use: b.use } : { k: 'slot', reg: b.reg, type: b.type };
-      return withMeaning(slot, { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity });
+      const meaning = { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity };
+      // A date or time column (smaltdb ADR 0019) reads as its text, as SQLite would hold it.
+      if (isTemporal(b.type)) return withMeaning(call('cast_text', [slot], 'text'), meaning);
+      return withMeaning(slot, meaning);
     }
     case 'collate': {
       const inner = bindExpr(e.expr, scope);
