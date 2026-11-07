@@ -1,5 +1,5 @@
 {
-  "smaltdb": { "repo": "stenhoor/smaltdb", "ref": "b3fb9c542db582c05c4174a24c63b458a836d41a" },
-  "@smaltdb/io": { "repo": "stenhoor/smaltdb-io", "ref": "50b0710216ae35dc6b1641027adbb88950532f4d" },
+  "smaltdb": { "repo": "stenhoor/smaltdb", "ref": "f95a3e46028a64d28118711a12369b6add9a5754" },
+  "@smaltdb/io": { "repo": "stenhoor/smaltdb-io", "ref": "1b6e4fc9adba4d9fc986fd652b189a7134f2e823" },
   "@smaltdb/external": { "repo": "stenhoor/smaltdb-external", "ref": "0a41cb5a9da56d9cfcbedb5ae7ef473555ccb908" }
 }
