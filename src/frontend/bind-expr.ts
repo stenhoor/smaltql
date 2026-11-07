@@ -95,10 +95,31 @@ const BITWISE: Readonly<Record<string, string>> = { '&': 'bit_and', '|': 'bit_or
  * calls, as the engine's `comparisonRule` gives them for the operands' meaning fields.
  */
 function bindComparison(op: string, a0: BoundExpr, b0: BoundExpr): BoundExpr {
-  const [a, b] = temporalOperands(a0, b0);
+  const [a, b] = nestedOperands(op, a0, b0) ?? temporalOperands(a0, b0);
   const rule = comparisonRule({ type: typeOf(a), carries: a.carries, affinity: a.affinity }, { type: typeOf(b), carries: b.carries, affinity: b.affinity });
   const wrap = (x: BoundExpr, conv: 'affinity_numeric' | 'affinity_text' | null): BoundExpr => (conv === null ? x : call(conv, [x], typeOf(x)));
   return call(COMPARISONS[op], [wrap(a, rule.left), wrap(b, rule.right)], 'int', rule.collation);
+}
+
+// ------------------------------------------------------------------ lists and structs
+
+const isNested = (t: StaticType): boolean => t.startsWith('list<') || t.startsWith('struct<');
+
+/** The list or struct value under its column's JSON text (`cast_text(col)`), if `e` is that. */
+function nestedUnder(e: BoundExpr): BoundExpr | undefined {
+  return e.k === 'call' && e.fn === 'cast_text' && e.args.length === 1 && isNested(typeOf(e.args[0])) ? e.args[0] : undefined;
+}
+
+const EQUALITY = new Set(['=', '!=', 'IS', 'IS NOT']);
+
+/**
+ * Two list or struct columns of one type compared for equality: on their values, which are equal exactly when their
+ * JSON texts are (smaltdb ADR 0020). An ordering compares the text, as SQL holds it.
+ */
+function nestedOperands(op: string, a: BoundExpr, b: BoundExpr): [BoundExpr, BoundExpr] | undefined {
+  const na = nestedUnder(a);
+  const nb = nestedUnder(b);
+  return na && nb && typeOf(na) === typeOf(nb) && EQUALITY.has(op) ? [na, nb] : undefined;
 }
 
 // ------------------------------------------------------------------ dates and times
@@ -189,6 +210,8 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const meaning = { collation: b.collation, collSrc: CollSrc.Column, affinity: b.affinity };
       // A date or time column (smaltdb ADR 0019) reads as its text, as SQLite would hold it.
       if (isTemporal(b.type)) return withMeaning(call('cast_text', [slot], 'text'), meaning);
+      // A list or struct column (smaltdb ADR 0020) reads as its JSON text.
+      if (isNested(b.type)) return withMeaning(call('cast_text', [slot], 'text'), meaning);
       return withMeaning(slot, meaning);
     }
     case 'collate': {
