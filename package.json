@@ -1,5 +1,5 @@
 {
-  "name": "smaltql",
+  "name": "@smaltworks/smaltql",
   "version": "0.9.0",
   "description": "SQL for the smaltdb engine: the SQLite dialect, parsed and bound to smaltdb plans",
   "keywords": [

@@ -1,9 +1,9 @@
 # Client API
 
-The client runs on the page (or in any worker), starts the engine in its own Web Worker, and talks to it with messages. Every call returns a promise. `open()` comes from `smaltql`, which starts an engine worker that reads SQL; everything else on this page is the `smaltdb` package's client (`smaltql` re-exports the `Database` and `OpenOptions` types).
+The client runs on the page (or in any worker), starts the engine in its own Web Worker, and talks to it with messages. Every call returns a promise. `open()` comes from `@smaltworks/smaltql`, which starts an engine worker that reads SQL; everything else on this page is the `smaltdb` package's client (`@smaltworks/smaltql` re-exports the `Database` and `OpenOptions` types).
 
 ```ts
-import { open, type Database } from 'smaltql';
+import { open, type Database } from '@smaltworks/smaltql';
 import { SmaltdbError } from 'smaltdb';
 ```
 
@@ -13,7 +13,7 @@ The guide explains the concepts: [databases](../../guide/databases), [queries](.
 
 | Export | Kind | Description |
 |---|---|---|
-| [`open`](#open) | function | Open or create a database (from `smaltql`) |
+| [`open`](#open) | function | Open or create a database (from `@smaltworks/smaltql`) |
 | [`Database`](#database) | class | An open database |
 | [`PreparedStatement`](#preparedstatement) | class | A compiled statement |
 | [`SmaltdbError`](#smaltdberror) | class | The error type of every failed call |
@@ -36,7 +36,7 @@ Import and export, registered files and credentials come from [plugins](../../gu
 Starts an engine worker (or, with multi-tab access, joins the tab that owns the database) and opens the database `name`, creating it if it does not exist. Resolves when the database is open.
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app');
 const temp = await open('temp', { storage: 'memory' });
@@ -54,7 +54,7 @@ Rejects with `SMALT_BUSY` if another engine worker holds the OPFS file without s
 | `pageSize` | `number` | `8192` | Page size in bytes for a new database (a power of two, 512 to 65536). Ignored for an existing one. |
 | `cacheMB` | `number` | `16` | Page cache budget in MiB. |
 | `durable` | `boolean` | `true` | Flush to storage on every commit. With `false`, recent commits can be lost in a crash. |
-| `worker` | `() => Worker` \| `URL` \| `string` \| `Worker` | smaltql's worker, `smaltql/worker` | Where the engine worker comes from: a function that starts it (use this for a worker entry with [plugins](../../guide/plugins)), a script URL (started as a module worker) or a `Worker`. See [loading the engine worker](../../guide/getting-started#loading-the-engine-worker). |
+| `worker` | `() => Worker` \| `URL` \| `string` \| `Worker` | smaltql's worker, `@smaltworks/smaltql/worker` | Where the engine worker comes from: a function that starts it (use this for a worker entry with [plugins](../../guide/plugins)), a script URL (started as a module worker) or a `Worker`. See [loading the engine worker](../../guide/getting-started#loading-the-engine-worker). |
 | `multiTab` | `boolean` | `true` for OPFS when `navigator.locks` and `BroadcastChannel` exist | Share the database with other tabs of the origin. Never applies to in-memory databases. See [multi-tab access](../../guide/databases#multi-tab-access). |
 
 ## Database
@@ -130,7 +130,7 @@ await byId.finalize();
 Run, or prepare, a statement given as plan data instead of SQL: the engine's own description of a query or a write, which every language builds. The plan format is **experimental**: it may change in any release until smaltdf, its first user besides SQL, has proven it. Its types, builders and codec are in `smaltdb/plan`, a separate entry point so that pages which don't build plans don't load them; the [engine reference](https://smaltdb.dev/reference/api/engine#plans) describes `PlanStatementInput` and the builders. Parameters are positional (`PlanParams` is an array). Results, options, transactions and parallel readers work as for [`query`](#query); a statement from `preparePlan` is an ordinary [`PreparedStatement`](#preparedstatement). The plan crosses to the engine worker as JSON, and the engine validates it: an invalid plan rejects with [`SMALT_PLAN`](https://smaltdb.dev/reference/api/errors#smalt-plan).
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 import * as p from 'smaltdb/plan';
 
 const db = await open('app');

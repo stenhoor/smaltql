@@ -7,7 +7,7 @@ You need smaltdb installed (see [getting started](./getting-started)).
 ## 1. Open a database
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('tasks'); // created in OPFS on first use
 ```

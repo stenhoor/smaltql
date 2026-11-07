@@ -18,19 +18,19 @@ and registers with the engine. smaltql is that language for SQL.
 In a page, `open()` gives a database whose engine worker reads SQL:
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app');
 await db.query('SELECT 1 + 1');
 ```
 
-The worker is `smaltql/worker`, loaded with `new URL(..., import.meta.url)`, so a bundler (Vite, webpack, esbuild)
+The worker is `@smaltworks/smaltql/worker`, loaded with `new URL(..., import.meta.url)`, so a bundler (Vite, webpack, esbuild)
 builds it. An application that also uses plugins writes its own worker entry and passes it to `open()`:
 
 ```ts
 // db-worker.ts
 import { defineWorker } from 'smaltdb/worker-runtime';
-import { sqlLanguage } from 'smaltql';
+import { sqlLanguage } from '@smaltworks/smaltql';
 import parquet from '@smaltdb/parquet';
 defineWorker({ languages: [sqlLanguage], plugins: [parquet] });
 
@@ -42,12 +42,12 @@ With the engine in the same thread (Node, or a worker of your own), register SQL
 
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 
 Database.openMemory().query('SELECT 1 + 1').rows; // [[2]]
 ```
 
-`smaltql` also exports `sqlLanguage` and the parser (`parse`, `parseOne`, `parseExpr`, `SqlSyntaxError`). It is in
+`@smaltworks/smaltql` also exports `sqlLanguage` and the parser (`parse`, `parseOne`, `parseExpr`, `SqlSyntaxError`). It is in
 development, with smaltdb 0.9.0; neither is on npm yet.
 
 License: MIT.

@@ -372,7 +372,7 @@ See [Queries](./queries) for parameters and the rest of the query API.
 The engine keeps recently used database pages in memory. The default budget is 16 MiB. Raise it when your working set (the tables and indexes your queries touch repeatedly) is larger:
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('analytics', { cacheMB: 64 });
 ```

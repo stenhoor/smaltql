@@ -29,7 +29,7 @@ A read needs a plugin for the format and a plugin for the source. `read_csv('fil
 Install the ones you use:
 
 ```sh
-npm install smaltql smaltdb @smaltdb/io @smaltdb/external
+npm install @smaltworks/smaltql smaltdb @smaltdb/io @smaltdb/external
 ```
 
 In the browser, the plugins run in the engine worker. Write a worker entry that serves the engine with them:
@@ -37,7 +37,7 @@ In the browser, the plugins run in the engine worker. Write a worker entry that 
 ```ts
 // db-worker.ts
 import { defineWorker } from 'smaltdb/worker-runtime';
-import { sqlLanguage } from 'smaltql';
+import { sqlLanguage } from '@smaltworks/smaltql';
 import io from '@smaltdb/io';
 import external from '@smaltdb/external';
 
@@ -47,7 +47,7 @@ defineWorker({ languages: [sqlLanguage], plugins: [io, external] });
 Open the database with that worker:
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app', {
   worker: () => new Worker(new URL('./db-worker.ts', import.meta.url), { type: 'module' }),
@@ -208,7 +208,7 @@ The engine is synchronous, but fetching files is not. smaltdb therefore fetches 
 
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 import io from '@smaltdb/io';
 import external from '@smaltdb/external';
 import { registerFile } from '@smaltdb/external/client';
@@ -411,7 +411,7 @@ Requests go through the global `fetch`. With the in-process engine, `setFetch(db
 
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 import io from '@smaltdb/io';
 import external from '@smaltdb/external';
 import { setFetch } from '@smaltdb/external/client';
@@ -594,7 +594,7 @@ Add it to the plugins of your engine worker entry, next to `@smaltdb/external` f
 ```ts
 // db-worker.ts
 import { defineWorker } from 'smaltdb/worker-runtime';
-import { sqlLanguage } from 'smaltql';
+import { sqlLanguage } from '@smaltworks/smaltql';
 import external from '@smaltdb/external';
 import parquet from '@smaltdb/parquet';
 

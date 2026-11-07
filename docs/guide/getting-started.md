@@ -5,16 +5,16 @@ smaltql is SQL for [smaltdb](https://smaltdb.dev), an embedded database for web 
 ## Install
 
 ```sh
-npm install smaltql smaltdb
+npm install @smaltworks/smaltql smaltdb
 ```
 
 smaltql declares smaltdb as a peer dependency, so an application has one engine. The entry points:
 
 | Import | Use it for |
 |---|---|
-| `smaltql` | `open()` a SQL database from a page or a worker (the engine runs in its own worker); `sqlLanguage` and the SQL parser. |
-| `smaltql/worker` | The engine worker `open()` starts: smaltdb's engine with SQL registered. |
-| `smaltql/register` | Registers SQL with the engine in the current thread: for `smaltdb/engine` in Node, tests and tools. |
+| `@smaltworks/smaltql` | `open()` a SQL database from a page or a worker (the engine runs in its own worker); `sqlLanguage` and the SQL parser. |
+| `@smaltworks/smaltql/worker` | The engine worker `open()` starts: smaltdb's engine with SQL registered. |
+| `@smaltworks/smaltql/register` | Registers SQL with the engine in the current thread: for `smaltdb/engine` in Node, tests and tools. |
 | `smaltdb` | The client's types and errors (`Database`, `SmaltdbError`), and `queryPlan` for [plans](https://smaltdb.dev/reference/engine/). |
 | `smaltdb/engine` | The engine itself, synchronous and in-process. See [the engine API](https://smaltdb.dev/reference/api/engine). |
 | `smaltdb/worker-runtime` | `defineWorker()`, to write your own engine worker entry with [plugins](./plugins). |
@@ -26,7 +26,7 @@ Type declarations ship with the packages. The engine needs Node 20 or later when
 ## A first query
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app'); // a database named "app", stored in OPFS
 await db.exec('CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY, body TEXT NOT NULL)');
@@ -71,14 +71,14 @@ The `worker` option overrides where the engine worker comes from. Your own worke
 ```ts
 // db-worker.ts
 import { defineWorker } from 'smaltdb/worker-runtime';
-import { sqlLanguage } from 'smaltql';
+import { sqlLanguage } from '@smaltworks/smaltql';
 import io from '@smaltdb/io';
 
 defineWorker({ languages: [sqlLanguage], plugins: [io] });
 ```
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app', { worker: () => new Worker(new URL('./db-worker.ts', import.meta.url), { type: 'module' }) });
 ```
@@ -110,11 +110,11 @@ The engine is designed for Chrome 108, Firefox 111 and Safari 17 and later ([ADR
 
 ## Node and other in-process use
 
-`smaltdb/engine` is the same engine without the worker and the client: a synchronous API that runs in the current thread. Register SQL once, with `smaltql/register`:
+`smaltdb/engine` is the same engine without the worker and the client: a synchronous API that runs in the current thread. Register SQL once, with `@smaltworks/smaltql/register`:
 
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 
 const db = Database.openMemory();
 db.exec('CREATE TABLE t(a INTEGER PRIMARY KEY, b TEXT)');
