@@ -57,8 +57,8 @@ The examples below assume an open `db` with the plugin installed.
 Both imports:
 
 - take the data as a `string`, `Uint8Array`, `ArrayBuffer`, or `Blob` (a `File` from an `<input type="file">` is a `Blob`). Bytes are decoded as UTF-8, and a leading byte order mark is skipped;
-- insert with one prepared `INSERT` per row, in a single transaction. Every constraint, type conversion, default and foreign key applies, exactly as for `INSERT` statements;
-- are all or nothing: if a row fails, every row of the import is rolled back and the call rejects. The error has the code of the underlying failure, and the message names the CSV line or JSON item, for example `CSV line 3: NOT NULL constraint failed: people.name`;
+- insert the rows with one prepared write, in a single transaction. Every constraint, type conversion, default and foreign key applies, exactly as for `INSERT` statements;
+- are all or nothing: if a row fails, every row of the import is rolled back and the call rejects. The error has the code of the underlying failure, and the message names the CSV line or JSON item, for example `CSV line 3: people.name must not be null` (code `SMALT_CONSTRAINT_NOTNULL`);
 - resolve to `{ rows }`, the number of rows inserted.
 
 If a transaction opened with SQL `BEGIN` is open, the import runs inside it, in a savepoint: if a row fails, the import's rows (and a table it created) are rolled back, the transaction stays open with your earlier statements, and it commits or rolls back with the rest of the transaction. Through the client, all four helpers wait for earlier `exec` calls and transactions of the same `Database`, as `exec` does. Do not call them inside a [`db.transaction()`](./transactions#what-waits-for-a-transaction) callback: they wait for the transaction to end.
@@ -110,10 +110,10 @@ await importCSV(db, 'people', 'Full name,Years\nBo,40\n', { columns: ['name', 'a
 import { importCSV } from '@smaltdb/io/client';
 
 await importCSV(db, 'scores', 'player,points,ratio\nann,12,0.5\nbob,7,\n', { create: true });
-// CREATE TABLE "scores"("player" TEXT, "points" INTEGER, "ratio" REAL)
+// scores: player TEXT, points INTEGER, ratio REAL
 ```
 
-The created table has no primary key or constraints. Create the table yourself when you need them. The table is created in the import's transaction: if the import fails, the table is removed again with its rows.
+The created table has no primary key or constraints, and no SQL text: `sqlite_schema` shows the engine's description of it, and `pragma_table_info` its columns. Create the table yourself when you need them. The table is created in the import's transaction: if the import fails, the table is removed again with its rows.
 
 ## importJSON
 
