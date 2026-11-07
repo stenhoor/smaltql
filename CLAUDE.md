@@ -31,8 +31,8 @@ against smaltdb's published types.
 
 - `src/` imports nothing of smaltdb but `smaltdb/language` (types and values). Anything else a language needs is added
   to `smaltdb/language` in smaltdb first, then the pin here is updated.
-- While smaltdb's engine entry still registers the SQL it carries, tests register smaltql's after their imports
-  (`test/setup.ts`), and `test/language.test.ts` checks that smaltql's is the one databases read.
+- smaltdb's engine carries no language, so tests register smaltql's (`test/setup.ts`), and `test/language.test.ts`
+  checks that it is the one databases read.
 - SQL results must match SQLite: `npm run slt` stays at smaltdb's pass rate.
 - **Docs examples are tests.** `test/docs-examples.test.ts` runs every SQL example in `docs/guide` and `docs/reference`
   (with the plugins pinned in `packed.json`), checks the result tables printed under them, and type-checks the
@@ -71,7 +71,7 @@ issue when the owner points it to one. Handle that issue in the issue itself, so
 
 ## Cross-repo impact
 
-- smaltdb pins this repository for its own tests once it stops carrying SQL (ADR 0015 step 9). A change here that
+- smaltdb pins this repository for its own tests (its `packed.json`). A change here that
   smaltdb's tests rely on needs the pin there updated.
 - smaltui and smaltbi will import `open()` from smaltql (ADR 0015 step 9).
 - `smaltdb-parquet` runs this repository's Parquet docs examples from its `smaltql` pin: after a docs change that touches

@@ -32,8 +32,8 @@ These are the minified sizes, with the gzipped size in brackets:
 
 | File | What it is | Size |
 |---|---|---|
-| client (`open()` from smaltql, with smaltdb's client) | what your page imports | 12 KB (4 KB) |
-| engine worker (`@smaltworks/smaltql/worker`: smaltdb's engine and SQL) | the engine, in its worker | 647 KB (203 KB) |
+| client (`open()` from smaltql, with smaltdb's client) | what your page imports | 17 KB (6 KB) |
+| engine worker (`@smaltworks/smaltql/worker`: smaltdb's engine and SQL) | the engine, in its worker | 609 KB (193 KB) |
 
 Optional features are [plugins](./plugins) and are not included: `@smaltdb/io` (CSV and JSON), `@smaltdb/external`
 (files, URLs, S3 and Azure) and `@smaltdb/parquet`. The plugins you install are bundled into your engine worker. The
