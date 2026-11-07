@@ -221,10 +221,15 @@ Reads a Parquet file. Only the columns the query uses are fetched, and row group
 | INT32, INT64 | INTEGER |
 | FLOAT, DOUBLE, DECIMAL, FLOAT16 | REAL |
 | STRING, ENUM, JSON, UUID | TEXT |
-| DATE | TEXT `YYYY-MM-DD` |
-| TIMESTAMP, INT96 | TEXT `YYYY-MM-DD HH:MM:SS` in UTC, with the fraction of a second when there is one |
+| DATE | TEXT `YYYY-MM-DD` (declared type `DATE`) |
+| TIMESTAMP, INT96 | TEXT `YYYY-MM-DD HH:MM:SS` in UTC, then `.123` or `.123456` when there is a fraction of a second (declared type `TIMESTAMP`) |
 | other binary | BLOB |
 | lists, structs, maps | TEXT holding JSON |
+
+DATE and TIMESTAMP columns are dates and times to the engine (`date` and `datetime`, [smaltdb ADR
+0019](https://smaltdb.dev/adr/0019-dates-and-times)), which SQL reads as their text: see [date and time
+columns](./datetime#columns). A comparison with a literal written the same way (`founded >= '1050-01-01'`) still lets the
+engine skip row groups by their statistics.
 
 <!-- docs:plugin @smaltdb/parquet -->
 ```sql
