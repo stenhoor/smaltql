@@ -5,12 +5,14 @@
   </picture>
 </h1>
 
+<a href="https://smaltworks.dev/stability"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/brand/work-in-progress-on-dark.svg"><img alt="Work in progress. Come build with us." src="docs/brand/work-in-progress.svg" height="56"></picture></a>
+
 **Small. Alternative. Familiar.** The SQL you know, for smaltdb.
 
 SQL for [smaltdb](https://github.com/stenhoor/smaltdb): the SQLite dialect, parsed and bound to smaltdb plans.
 
-Documentation: [stenhoor.github.io/smaltql](https://stenhoor.github.io/smaltql/) (guide, SQL and functions reference,
-client API). The engine is documented at [smaltdb.dev](https://smaltdb.dev).
+[Documentation](https://stenhoor.github.io/smaltql/) (guide, SQL and functions reference, client API) ·
+[smaltworks.dev](https://smaltworks.dev). The engine is documented at [smaltdb.dev](https://smaltdb.dev).
 
 smaltdb is an embedded database engine for browsers. It runs plans, not text: a language turns its source into plans
 and registers with the engine. smaltql is that language for SQL.
@@ -50,4 +52,6 @@ Database.openMemory().query('SELECT 1 + 1').rows; // [[2]]
 `@smaltworks/smaltql` also exports `sqlLanguage` and the parser (`parse`, `parseOne`, `parseExpr`, `SqlSyntaxError`). It is in
 development, with smaltdb 0.9.0; neither is on npm yet.
 
-License: MIT.
+<a href="https://smaltworks.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/brand/a-smaltworks-project-on-dark.svg"><img alt="A smaltworks project" src="docs/brand/a-smaltworks-project.svg" height="28"></picture></a>
+
+MIT License.

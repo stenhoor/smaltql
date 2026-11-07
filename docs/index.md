@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: 'sm<span class="alt">alt</span><span class="suffix">ql</span>'
+  name: 'sm<span class="alt">alt</span><span class="suffix language">ql</span>'
   text: Small. Alternative. Familiar.
   tagline: The SQL you know, for smaltdb.
   image:
