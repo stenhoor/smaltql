@@ -132,7 +132,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const x = bindExpr(e.operand, scope);
       switch (e.op) {
         case 'NOT':
-          return { k: 'not', arg: x };
+          return { k: 'not', type: 'int', arg: x };
         case '-':
           return call('neg', [x], isNumericType(typeOf(x)) ? typeOf(x) : 'num');
         case '~':
@@ -150,26 +150,26 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const x = bindExpr(e.expr, scope);
       const lo = bindExpr(e.low, scope);
       const hi = bindExpr(e.high, scope);
-      const both: BoundExpr = opaque({ k: 'and', args: [bindComparison('>=', x, lo), bindComparison('<=', x, hi)] });
-      return e.not ? opaque({ k: 'not', arg: both }) : both;
+      const both: BoundExpr = opaque({ k: 'and', type: 'int', args: [bindComparison('>=', x, lo), bindComparison('<=', x, hi)] });
+      return e.not ? opaque({ k: 'not', type: 'int', arg: both }) : both;
     }
     case 'isNull':
-      return { k: 'isNull', arg: bindExpr(e.expr, scope), not: e.not };
+      return { k: 'isNull', type: 'int', arg: bindExpr(e.expr, scope), not: e.not };
     case 'inList': {
       const x = bindExpr(e.expr, scope);
       const list = e.list.map((v) => bindExpr(v, scope));
       const inList = call('in_list', [x, ...list], 'int');
-      return e.not ? opaque({ k: 'not', arg: inList }) : inList;
+      return e.not ? opaque({ k: 'not', type: 'int', arg: inList }) : inList;
     }
     case 'inSelect': {
       const probe = bindExpr(e.expr, scope);
       const sub = scope.planSubquery(e.select, 'in');
       const node: BoundExpr = { k: 'inSubquery', probe, plan: sub.plan, collation: 'binary' };
-      return e.not ? { k: 'not', arg: node } : node;
+      return e.not ? { k: 'not', type: 'int', arg: node } : node;
     }
     case 'exists': {
       const node: BoundExpr = { k: 'subquery', mode: 'exists', plan: scope.planSubquery(e.select, 'exists').plan, type: 'int', collation: 'binary' };
-      return e.not ? { k: 'not', arg: node } : node;
+      return e.not ? { k: 'not', type: 'int', arg: node } : node;
     }
     case 'subquery': {
       const { plan, column } = scope.planSubquery(e.select, 'scalar');
@@ -183,7 +183,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const esc = e.escape ? bindExpr(e.escape, scope) : undefined;
       if (e.op !== 'LIKE' && e.op !== 'GLOB') throw new SmaltError('SMALT_ERROR', `no such function: ${e.op.toLowerCase()}`);
       const like = call(e.op === 'GLOB' ? 'glob' : 'like', esc ? [x, pat, esc] : [x, pat], 'int');
-      return e.not ? opaque({ k: 'not', arg: like }) : like;
+      return e.not ? opaque({ k: 'not', type: 'int', arg: like }) : like;
     }
     case 'case': {
       const base = e.base ? bindExpr(e.base, scope) : undefined;
@@ -219,9 +219,9 @@ function stripped(e: BoundExpr): BoundExpr {
 function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
   switch (op) {
     case 'AND':
-      return { k: 'and', args: [a, b] };
+      return { k: 'and', type: 'int', args: [a, b] };
     case 'OR':
-      return { k: 'or', args: [a, b] };
+      return { k: 'or', type: 'int', args: [a, b] };
     case '=':
     case '!=':
     case '<':

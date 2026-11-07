@@ -71,6 +71,8 @@ export const sqlLanguage: SmaltLanguage = {
     return source.text.slice(s.pos, s.end);
   },
   sourceEditor: sqlSourceEditor,
+  // SQLite binds NaN as NULL (smaltdb ADR 0018): the engine keeps NaN, so SQL says what its parameters mean.
+  parameter: (value) => (typeof value === 'number' && value !== value ? null : value),
 };
 
 /**

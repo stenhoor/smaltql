@@ -24,7 +24,11 @@ export const windowFunction = (name: string): CatalogFunction | undefined => eng
 export const takesArgs = (f: CatalogFunction, n: number): boolean => n >= f.minArgs && (f.maxArgs === null || n <= f.maxArgs);
 
 /** Function `name`'s result type for these argument types. */
-export const resultType = (name: string, args: readonly (StaticType | { type: StaticType; collation?: 'binary' | 'nocase' | 'rtrim' })[]): StaticType => engineFunctions.resultType(name, args) ?? 'any';
+/** A function's result type as SQL gives it: a `bool` is 0 / 1 in SQL, an INTEGER (smaltdb ADR 0018). */
+export const resultType = (name: string, args: readonly (StaticType | { type: StaticType; collation?: 'binary' | 'nocase' | 'rtrim' })[]): StaticType => {
+  const t = engineFunctions.resultType(name, args) ?? 'any';
+  return t === 'bool' ? 'int' : t;
+};
 
 const COLLATIONS: Readonly<Record<string, Collation>> = { binary: Collation.Binary, nocase: Collation.NoCase, rtrim: Collation.RTrim };
 
