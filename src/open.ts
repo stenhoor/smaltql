@@ -1,5 +1,5 @@
 /**
- * `open()` for SQL (smaltdb ADR 0015): smaltdb's client `open()`, with smaltql's worker (`smaltql/worker`) as its
+ * `open()` for SQL (smaltdb ADR 0015): smaltdb's client `open()`, with smaltql's worker (`@smaltworks/smaltql/worker`) as its
  * engine worker. `options.worker` still overrides it, for a worker entry that also installs plugins.
  */
 import { open as openDatabase, type Database, type OpenOptions } from 'smaltdb';

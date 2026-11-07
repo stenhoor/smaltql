@@ -247,9 +247,9 @@ describe('documentation TypeScript examples', () => {
           typeRoots: [join(root, 'node_modules/@types')],
           baseUrl: '.',
           paths: {
-            smaltql: [join(root, 'src/index.ts')],
-            'smaltql/register': [join(root, 'src/register.ts')],
-            'smaltql/worker': [join(root, 'src/worker.ts')],
+            '@smaltworks/smaltql': [join(root, 'src/index.ts')],
+            '@smaltworks/smaltql/register': [join(root, 'src/register.ts')],
+            '@smaltworks/smaltql/worker': [join(root, 'src/worker.ts')],
             smaltdb: [join(root, 'node_modules/smaltdb/src/client/index.ts')],
             'smaltdb/engine': [join(root, 'node_modules/smaltdb/src/engine/index.ts')],
             'smaltdb/plan': [join(root, 'node_modules/smaltdb/src/engine/plan/portable.ts')],

@@ -50,7 +50,7 @@ features:
 ## Quick start
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app');
 await db.exec('CREATE TABLE IF NOT EXISTS todo(id INTEGER PRIMARY KEY, title TEXT NOT NULL, done INT DEFAULT 0)');

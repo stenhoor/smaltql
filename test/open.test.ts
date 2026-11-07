@@ -17,13 +17,13 @@ class FakeWorker {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('smaltql/worker and open()', () => {
+describe('@smaltworks/smaltql/worker and open()', () => {
   it('the worker entry registers SQL with defineWorker', async () => {
     await import('../src/worker.js');
     expect(defineWorker).toHaveBeenCalledWith({ languages: [sqlLanguage] });
   });
 
-  it('open() starts smaltql/worker, unless options give another worker', async () => {
+  it('open() starts @smaltworks/smaltql/worker, unless options give another worker', async () => {
     vi.stubGlobal('Worker', FakeWorker);
     const { open } = await import('../src/index.js');
     await open('db', { cacheSizeBytes: 1 } as never);

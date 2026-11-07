@@ -5,7 +5,7 @@ A database is opened with `open()` and lives either in the Origin Private File S
 ## Opening and closing
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app');
 // … queries …
@@ -29,10 +29,10 @@ Each `open()` call returns its own `Database` with its own worker, unless multi-
 | `pageSize` | `number` | `8192` | Page size in bytes for a **new** database: a power of two from 512 to 65536. Ignored when the database already exists. |
 | `cacheMB` | `number` | `16` | Page cache budget in MiB for the engine worker. |
 | `multiTab` | `boolean` | `true` for OPFS when Web Locks and `BroadcastChannel` exist | Share the database with other tabs of the same origin. See [multi-tab access](#multi-tab-access). |
-| `worker` | `() => Worker` \| `URL` \| `string` \| `Worker` | smaltql's worker, `smaltql/worker` | Where the engine worker comes from: a function that starts it (for [plugins](./plugins)), a URL, or a `Worker`. See [loading the engine worker](./getting-started#loading-the-engine-worker). |
+| `worker` | `() => Worker` \| `URL` \| `string` \| `Worker` | smaltql's worker, `@smaltworks/smaltql/worker` | Where the engine worker comes from: a function that starts it (for [plugins](./plugins)), a URL, or a `Worker`. See [loading the engine worker](./getting-started#loading-the-engine-worker). |
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('analytics', { pageSize: 16384, cacheMB: 64 });
 ```
@@ -65,7 +65,7 @@ The data survives page reloads and browser restarts, within the browser's storag
 smaltdb has no call to delete a database. Close it, then remove its files with the OPFS API:
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('scratch');
 await db.close();
@@ -82,7 +82,7 @@ for (const file of ['scratch.db', 'scratch.db-wal', 'scratch.db-spill']) {
 With `storage: 'memory'` (or the name `':memory:'`), the database lives in the engine worker's memory and is gone when it is closed or the page unloads. It needs no OPFS. Transactions, savepoints and rollback work as usual.
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const scratch = await open('scratch', { storage: 'memory' });
 ```
@@ -108,7 +108,7 @@ Commits on OPFS go through a write-ahead log: a transaction is either fully comm
 With `durable: true` (the default), each commit flushes the log to storage before the commit resolves. With `durable: false`, commits are written to the files but not flushed: they are faster, and the most recent commits can be lost if the browser or the operating system crashes before the data reaches storage.
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const cache = await open('cache', { durable: false });
 ```
@@ -142,7 +142,7 @@ From your code's point of view, every tab has a normal `Database`. Some things t
 Turn sharing off with `multiTab: false`. Each `open()` then opens the files itself, and a second tab that opens the same database fails with `SMALT_BUSY` while the first has it open.
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 
 const db = await open('app', { multiTab: false });
 ```

@@ -21,7 +21,7 @@ worker an entry script that lists your plugins.
 1. Install the plugins next to smaltdb:
 
    ```sh
-   npm install smaltql smaltdb @smaltdb/io @smaltdb/external @smaltdb/parquet
+   npm install @smaltworks/smaltql smaltdb @smaltdb/io @smaltdb/external @smaltdb/parquet
    ```
 
    For Parquet files compressed with gzip, zstd, brotli or LZ4, also install `hyparquet-compressors`. Snappy and
@@ -33,7 +33,7 @@ worker an entry script that lists your plugins.
    ```ts
    // db-worker.ts
    import { defineWorker } from 'smaltdb/worker-runtime';
-   import { sqlLanguage } from 'smaltql';
+   import { sqlLanguage } from '@smaltworks/smaltql';
    import io from '@smaltdb/io';
    import external from '@smaltdb/external';
    import parquet from '@smaltdb/parquet';
@@ -44,7 +44,7 @@ worker an entry script that lists your plugins.
 3. Open the database with that worker:
 
    ```ts
-   import { open } from 'smaltql';
+   import { open } from '@smaltworks/smaltql';
 
    const db = await open('app', {
      worker: () => new Worker(new URL('./db-worker.ts', import.meta.url), { type: 'module' }),
@@ -64,7 +64,7 @@ With other bundlers, build `db-worker.ts` as a module worker, and start it from 
 function.
 
 **The default worker has no plugins.** `open()` without a `worker` option starts smaltql's worker
-(`smaltql/worker`), which is `defineWorker({ languages: [sqlLanguage] })` with no plugins.
+(`@smaltworks/smaltql/worker`), which is `defineWorker({ languages: [sqlLanguage] })` with no plugins.
 
 **Parallel readers and other tabs get the same plugins.** The engine starts its parallel reader workers from the same
 script, so they have the same plugins. When several tabs share a database, the tab that owns it runs its own worker.
@@ -77,7 +77,7 @@ With the in-process engine, pass the plugins to `Database.open()` or `Database.o
 <!-- docs:plugin @smaltdb/parquet -->
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 import external from '@smaltdb/external';
 import parquet from '@smaltdb/parquet';
 

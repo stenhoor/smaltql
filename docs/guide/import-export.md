@@ -28,7 +28,7 @@ In the browser, install it in the engine worker. Write a worker entry that serve
 ```ts
 // db-worker.ts
 import { defineWorker } from 'smaltdb/worker-runtime';
-import { sqlLanguage } from 'smaltql';
+import { sqlLanguage } from '@smaltworks/smaltql';
 import io from '@smaltdb/io';
 
 defineWorker({ languages: [sqlLanguage], plugins: [io] });
@@ -37,7 +37,7 @@ defineWorker({ languages: [sqlLanguage], plugins: [io] });
 Then open the database with that worker:
 
 ```ts
-import { open } from 'smaltql';
+import { open } from '@smaltworks/smaltql';
 import { importCSV } from '@smaltdb/io/client';
 
 const db = await open('app', {
@@ -231,7 +231,7 @@ The helpers work the same with the in-process engine. Install the plugin when yo
 
 ```ts
 import { Database } from 'smaltdb/engine';
-import 'smaltql/register';
+import '@smaltworks/smaltql/register';
 import io from '@smaltdb/io';
 import { importCSV, exportJSON } from '@smaltdb/io/client';
 
