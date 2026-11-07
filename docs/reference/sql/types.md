@@ -157,6 +157,18 @@ SELECT d, typeof(d) AS td, n, typeof(n) AS tn, date(d, '+1 month') AS next FROM 
 
 JavaScript `Date` objects are not accepted as parameters; pass `date.toISOString()` or a number.
 
+A table another language defines, or a Parquet file, can have date and time columns of the engine's own types. SQL
+reads them as their text: see [date and time columns](../functions/datetime#columns).
+
+## Lists and structs
+
+SQL has no list or struct type. A table another language defines (such as smaltdf's), or a Parquet file, can have
+list and struct columns of the engine's own types ([smaltdb ADR 0020](https://smaltdb.dev/adr/0020-lists-and-structs)).
+SQL reads them as their JSON text: `["a","b"]`, `{"x":1,"y":2.5}`, dates and times as their text and booleans as `true` /
+`false`. Results give that text, and text functions, `LIKE` and comparisons with text see it. Two columns of the same list
+or struct type compare for equality (`=`, `!=`, `IS`, `IS NOT`) on their values, which are equal exactly when their texts
+are; an ordering (`<`) compares the texts.
+
 ## BLOBs
 
 BLOB literals are written `x'0A1B'`. From JavaScript, pass a `Uint8Array` (other typed arrays and `DataView`s are bound as their bytes). Results return `Uint8Array`. A BLOB column accepts only BLOBs; `CAST(text AS BLOB)` gives the text's UTF-8 bytes.
