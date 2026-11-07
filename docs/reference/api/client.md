@@ -136,7 +136,7 @@ import * as p from 'smaltdb/plan';
 const db = await open('app');
 await db.exec("CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY, name TEXT); INSERT OR IGNORE INTO people VALUES (1, 'Ada'), (2, 'Lin')");
 // SELECT name FROM people WHERE id = ?
-const byId = p.project(p.filter(p.scan('people', [0, 1]), p.call('sql.eq', [p.col(0, 0, 'int'), p.param(0, 'int')], 'int')), [p.col(0, 1, 'text')]);
+const byId = p.project(p.filter(p.scan('people', [0, 1]), p.call('cmp_eq', [p.col(0, 0, 'int'), p.param(0, 'int')], 'int')), [p.col(0, 1, 'text')]);
 const rows = await db.queryPlan<{ name: string }>({ kind: 'query', plan: byId, columns: [{ name: 'name', type: 'text' }] }, [2]); // [{ name: 'Lin' }]
 ```
 

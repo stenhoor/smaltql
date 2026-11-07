@@ -35,8 +35,8 @@ describe('SQL front end', () => {
       [
         'limit 2',
         '  sort #0.1',
-        '    project #0.2, sql.add(#0.1, 1)',
-        "      filter sql.eq(#0.2, sql.affinity_text('x'))[nocase]",
+        '    project #0.2, add(#0.1, 1)',
+        "      filter cmp_eq(#0.2, affinity_text('x'))[nocase]",
         '        scan t [0, 1, 2]',
       ].join('\n'),
     );
@@ -46,7 +46,7 @@ describe('SQL front end', () => {
     const { catalog } = await setup();
     // u has no INTEGER PRIMARY KEY: its rowid is the position after its columns.
     expect(plan(catalog, 'SELECT t.a, u.rowid FROM t LEFT JOIN u ON u.x = t.a')!.text).toBe(
-      ['project #0.1, #0.5', '  join left on sql.eq(#1.0, #0.1)', '    scan t [0, 1, 2]', '    scan u [0, 1, -1]'].join('\n'),
+      ['project #0.1, #0.5', '  join left on cmp_eq(#1.0, #0.1)', '    scan t [0, 1, 2]', '    scan u [0, 1, -1]'].join('\n'),
     );
   });
 
@@ -55,16 +55,16 @@ describe('SQL front end', () => {
     // USING hides the right side's copy of the column from * and from unqualified names.
     const p = plan(catalog, 'SELECT * FROM t JOIN w USING (a)');
     expect(p!.columns).toEqual(['id int INTEGER', 'a int INT', 's text TEXT nocase', 'z text TEXT']);
-    expect(p!.text).toBe(['project #0.0, #0.1, #0.2, #0.4', '  join inner on sql.eq(#0.1, #1.0)', '    scan t [0, 1, 2]', '    scan w [0, 1, -1]'].join('\n'));
-    expect(plan(catalog, 'SELECT z FROM t NATURAL JOIN w')!.text.split('\n')[1]).toBe('  join inner on sql.eq(#0.1, #1.0)');
-    expect(plan(catalog, 'SELECT t.a, w.z FROM t FULL JOIN w ON w.a = t.a')!.text.split('\n')[1]).toBe('  join full on sql.eq(#1.0, #0.1)');
+    expect(p!.text).toBe(['project #0.0, #0.1, #0.2, #0.4', '  join inner on cmp_eq(#0.1, #1.0)', '    scan t [0, 1, 2]', '    scan w [0, 1, -1]'].join('\n'));
+    expect(plan(catalog, 'SELECT z FROM t NATURAL JOIN w')!.text.split('\n')[1]).toBe('  join inner on cmp_eq(#0.1, #1.0)');
+    expect(plan(catalog, 'SELECT t.a, w.z FROM t FULL JOIN w ON w.a = t.a')!.text.split('\n')[1]).toBe('  join full on cmp_eq(#1.0, #0.1)');
     expect(() => plan(catalog, 'SELECT * FROM t JOIN u USING (a)')).toThrow('cannot join using column a - column not present in both tables');
   });
 
   it('carries bare columns through the aggregate', async () => {
     const { catalog } = await setup();
     expect(plan(catalog, 'SELECT a, s, max(id) FROM t GROUP BY a HAVING count(*) > 1')!.text).toBe(
-      ['project #0.0, #0.3, #0.1', '  filter sql.gt(#0.2, 1)', '    aggregate keys [#0.1] aggs [max(#0.0), count(*)] carry [#0.2]', '      scan t [0, 1, 2]'].join('\n'),
+      ['project #0.0, #0.3, #0.1', '  filter cmp_gt(#0.2, 1)', '    aggregate keys [#0.1] aggs [max(#0.0), count(*)] carry [#0.2]', '      scan t [0, 1, 2]'].join('\n'),
     );
   });
 
@@ -72,7 +72,7 @@ describe('SQL front end', () => {
     const { catalog } = await setup();
     const p = plan(catalog, 'SELECT va, (SELECT max(y) FROM u WHERE u.x = va) AS m FROM v');
     expect(p!.columns).toEqual(['va int INT', 'm real']);
-    expect(p!.text).toBe(['project #0.0, scalar(<project>)', '  project #0.1, #0.2', '    filter sql.gt(#0.1, sql.affinity_numeric(0))', '      scan t [0, 1, 2]'].join('\n'));
+    expect(p!.text).toBe(['project #0.0, scalar(<project>)', '  project #0.1, #0.2', '    filter cmp_gt(#0.1, affinity_numeric(0))', '      scan t [0, 1, 2]'].join('\n'));
   });
 
   it('raises the planner\'s errors', async () => {
@@ -90,7 +90,7 @@ describe('SQL front end', () => {
       ['project #0.1, #0.3', '  window [sum(#0.1)] partition [#0.2] order [#0.0] RANGE unboundedPreceding..currentRow', '    scan t [0, 1, 2]'].join('\n'),
     );
     expect(plan(catalog, 'WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n')!.text).toBe(
-      ['project #0.0', '  iterate #0', '    project 1', '      values ()', '    project sql.add(#0.0, 1)', '      filter sql.lt(#0.0, 3)', '        working #0'].join('\n'),
+      ['project #0.0', '  iterate #0', '    project 1', '      values ()', '    project add(#0.0, 1)', '      filter cmp_lt(#0.0, 3)', '        working #0'].join('\n'),
     );
     // A table function's arguments may read the join's left input (a lateral source).
     expect(plan(catalog, 'SELECT t.id, p.name FROM t, pragma_table_info(t.s) p')!.text).toBe(
@@ -132,7 +132,7 @@ describe('plans are plain data', () => {
   });
   it('read the clock with a call', async () => {
     const { catalog } = await setup();
-    expect(plan(catalog, 'SELECT CURRENT_DATE, CURRENT_TIMESTAMP')!.text).toBe('project sql.current_date(), sql.current_timestamp()\n  values ()');
+    expect(plan(catalog, 'SELECT CURRENT_DATE, CURRENT_TIMESTAMP')!.text).toBe('project current_date(), current_timestamp()\n  values ()');
   });
   it('bind CHECK, DEFAULT and index expressions over the table row (ADR 0015 step 4)', async () => {
     const db = await Database.open(new MemoryVfs(), 'db');
@@ -143,11 +143,11 @@ describe('plans are plain data', () => {
     const t = db.getTable('p')!;
     const def = (parseOne(sql).stmt as CreateTableStmt).columns[2].constraints.find((c) => c.kind === 'default') as { expr: Parameters<typeof toValueExpr>[0] };
     // Column i is #0.i; the rowid (and its alias) is #0.n.
-    expect(t.checks.map((c) => printExpr(c.expr!))).toEqual(['sql.gt(#0.1, sql.affinity_numeric(0))', 'sql.lt(sql.affinity_numeric(length(#0.2)), #0.0)']);
+    expect(t.checks.map((c) => printExpr(c.expr!))).toEqual(['cmp_gt(#0.1, affinity_numeric(0))', 'cmp_lt(affinity_numeric(length(#0.2)), #0.0)']);
     expect(printExpr(toValueExpr(def.expr, sql, catalog))).toBe("upper('x')");
     const ev = t.indexes.find((i) => i.name === 'pa')!.eval!;
-    expect(ev.plan.cols.map((e) => e && printExpr(e))).toEqual(['sql.mul(#0.1, 2)']);
-    expect(printExpr(ev.plan.where!)).toBe('(#0.2 is not null and sql.gt(#0.3, sql.affinity_numeric(1)))');
+    expect(ev.plan.cols.map((e) => e && printExpr(e))).toEqual(['mul(#0.1, 2)']);
+    expect(printExpr(ev.plan.where!)).toBe('(#0.2 is not null and cmp_gt(#0.3, affinity_numeric(1)))');
     expect(offending(ev.plan)).toEqual([]);
     expect(() => JSON.stringify(ev.plan)).not.toThrow();
   });

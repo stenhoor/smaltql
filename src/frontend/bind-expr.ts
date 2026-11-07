@@ -1,7 +1,7 @@
 /**
  * SQL's expression binder (ADR 0014, step 3b): an expression of the parser (sql/ast.ts) bound to a plan expression,
  * with its names resolved, typed, and SQL's rules made explicit (comparison collations, affinity conversions, the
- * `sql.*` function for each operator). The engine compiles plan expressions.
+ * engine operation for each operator, by behaviour name). The engine compiles plan expressions.
  */
 import { SmaltError } from 'smaltdb/language';
 import { storageTypeFor } from 'smaltdb/language';
@@ -84,11 +84,11 @@ function opaque<T extends BoundExpr>(e: T): T {
   return e;
 }
 
-/** SQL's comparison operators, as the engine's operations (under their `sql.*` names, until SQL moves to the behaviour names). */
-const COMPARISONS: Readonly<Record<string, string>> = { '=': 'sql.eq', '!=': 'sql.ne', '<': 'sql.lt', '<=': 'sql.le', '>': 'sql.gt', '>=': 'sql.ge', IS: 'sql.is', 'IS NOT': 'sql.is_not' };
+/** SQL's comparison operators, as the engine's operations (by behaviour name, smaltdb ADR 0016 section 1). */
+const COMPARISONS: Readonly<Record<string, string>> = { '=': 'cmp_eq', '!=': 'cmp_ne', '<': 'cmp_lt', '<=': 'cmp_le', '>': 'cmp_gt', '>=': 'cmp_ge', IS: 'cmp_is', 'IS NOT': 'cmp_is_not' };
 /** SQL's arithmetic and bitwise operators, as the engine's operations. */
-const ARITHMETIC: Readonly<Record<string, string>> = { '+': 'sql.add', '-': 'sql.sub', '*': 'sql.mul', '/': 'sql.div', '%': 'sql.mod' };
-const BITWISE: Readonly<Record<string, string>> = { '&': 'sql.bitand', '|': 'sql.bitor', '<<': 'sql.shl', '>>': 'sql.shr' };
+const ARITHMETIC: Readonly<Record<string, string>> = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div_trunc', '%': 'mod_trunc' };
+const BITWISE: Readonly<Record<string, string>> = { '&': 'bit_and', '|': 'bit_or', '<<': 'shift_left', '>>': 'shift_right' };
 
 /**
  * `left op right` with SQLite's collation and affinity rules made explicit: a collation attribute and conversion
@@ -96,13 +96,13 @@ const BITWISE: Readonly<Record<string, string>> = { '&': 'sql.bitand', '|': 'sql
  */
 function bindComparison(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
   const rule = comparisonRule({ type: typeOf(a), carries: a.carries, affinity: a.affinity }, { type: typeOf(b), carries: b.carries, affinity: b.affinity });
-  const wrap = (x: BoundExpr, conv: 'affinity_numeric' | 'affinity_text' | null): BoundExpr => (conv === null ? x : call(`sql.${conv}`, [x], typeOf(x)));
+  const wrap = (x: BoundExpr, conv: 'affinity_numeric' | 'affinity_text' | null): BoundExpr => (conv === null ? x : call(conv, [x], typeOf(x)));
   return call(COMPARISONS[op], [wrap(a, rule.left), wrap(b, rule.right)], 'int', rule.collation);
 }
 
 /**
  * Bind an expression of the parser to a plan expression: resolve its names, type it, and make SQL's rules explicit
- * (comparison collations, affinity conversions, the `sql.*` function for each operator). Subqueries are planned and
+ * (comparison collations, affinity conversions, the engine operation for each operator). Subqueries are planned and
  * select-list aliases compiled here, at the moment the closure compiler always did, so planning order, registers
  * and errors are unchanged.
  */
@@ -134,9 +134,9 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
         case 'NOT':
           return { k: 'not', arg: x };
         case '-':
-          return call('sql.neg', [x], isNumericType(typeOf(x)) ? typeOf(x) : 'num');
+          return call('neg', [x], isNumericType(typeOf(x)) ? typeOf(x) : 'num');
         case '~':
-          return call('sql.bitnot', [x], 'int');
+          return call('bit_not', [x], 'int');
         case '+':
           // Unary plus is a no-op that strips affinity and collation (SQLite): the same value, without the metadata.
           return opaque(stripped({ ...x }));
@@ -158,7 +158,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
     case 'inList': {
       const x = bindExpr(e.expr, scope);
       const list = e.list.map((v) => bindExpr(v, scope));
-      const inList = call('sql.in_list', [x, ...list], 'int');
+      const inList = call('in_list', [x, ...list], 'int');
       return e.not ? opaque({ k: 'not', arg: inList }) : inList;
     }
     case 'inSelect': {
@@ -182,7 +182,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const pat = bindExpr(e.pattern, scope);
       const esc = e.escape ? bindExpr(e.escape, scope) : undefined;
       if (e.op !== 'LIKE' && e.op !== 'GLOB') throw new SmaltError('SMALT_ERROR', `no such function: ${e.op.toLowerCase()}`);
-      const like = call(e.op === 'GLOB' ? 'sql.glob' : 'sql.like', esc ? [x, pat, esc] : [x, pat], 'int');
+      const like = call(e.op === 'GLOB' ? 'glob' : 'like', esc ? [x, pat, esc] : [x, pat], 'int');
       return e.not ? opaque({ k: 'not', arg: like }) : like;
     }
     case 'case': {
@@ -203,7 +203,7 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const affinity = st === 'ANY' ? 'NUMERIC' : affinityOfStorage(st);
       const to = st === 'ANY' || st === 'NUMERIC' ? 'num' : staticTypeOfStorage(st);
       const m = metaOf(x);
-      return withMeaning({ k: 'cast', fn: CAST_FUNCTIONS[st] ?? 'sql.cast_numeric', to, arg: x }, { collation: m.collation, collSrc: m.collSrc, affinity });
+      return withMeaning({ k: 'cast', fn: CAST_FUNCTIONS[st] ?? 'cast_numeric', to, arg: x }, { collation: m.collation, collSrc: m.collSrc, affinity });
     }
     case 'call':
       return bindCall(e, scope);
@@ -241,7 +241,7 @@ function bindBinary(op: string, a: BoundExpr, b: BoundExpr): BoundExpr {
       return call(ARITHMETIC[op], [a, b], ta === 'real' || tb === 'real' ? 'real' : ta === 'int' && tb === 'int' ? 'int' : 'num');
     }
     case '||':
-      return call('sql.concat', [a, b], 'text');
+      return call('text_concat', [a, b], 'text');
     case '&':
     case '|':
     case '<<':
@@ -269,7 +269,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   if (e.distinct || e.star || e.filter) throw new SmaltError('SMALT_ERROR', `DISTINCT/FILTER/* is only valid with aggregate functions`);
   if (name === 'current_time' || name === 'current_date' || name === 'current_timestamp') {
     // A plain call, so plans carry no closure: the clock is read when the statement runs.
-    return call(`sql.${name}`, [], 'text');
+    return call(name, [], 'text');
   }
   const def = scalarFunction(name);
   if (!def) {
@@ -298,7 +298,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   return withMeaning(call(name, args, type), { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' });
 }
 
-const CAST_FUNCTIONS: Record<string, string> = { INTEGER: 'sql.cast_integer', REAL: 'sql.cast_real', TEXT: 'sql.cast_text', BLOB: 'sql.cast_blob' };
+const CAST_FUNCTIONS: Record<string, string> = { INTEGER: 'cast_integer', REAL: 'cast_real', TEXT: 'cast_text', BLOB: 'cast_blob' };
 
 /** Split a predicate into AND-ed conjuncts. */
 export function conjuncts(e: Expr | undefined, out: Expr[] = []): Expr[] {
