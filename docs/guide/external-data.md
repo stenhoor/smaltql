@@ -22,7 +22,7 @@ External data is not built into the core engine. Three [plugins](./plugins) prov
 | --- | --- | --- |
 | `@smaltdb/io` | The CSV, TSV, JSON and NDJSON formats; `read_csv()` and `read_json()` | Nothing |
 | `@smaltdb/external` | Where data is read from: registered files (`file:`), `http://` and `https://` URLs, S3 (`s3://`), Azure Blob Storage (`az://`, `azure://`) and local paths in Node. The connection types `http`, `s3` and `azure`. The helpers `registerFile`, `registerCredentials` and `setFetch` | Nothing |
-| `@smaltdb/parquet` | The Parquet format; `read_parquet()` | `hyparquet`; optionally `hyparquet-compressors` |
+| `@smaltdb/parquet` | The Parquet format; `read_parquet()` | `hyparquet`, `hyparquet-compressors` |
 
 A read needs a plugin for the format and a plugin for the source. `read_csv('file:prices.csv')` needs both `@smaltdb/io` and `@smaltdb/external`.
 
@@ -603,11 +603,8 @@ defineWorker({ languages: [sqlLanguage], plugins: [external, parquet] });
 
 In Node: `Database.openMemory({ plugins: [external, parquet] })`.
 
-Snappy compression is built in. For gzip, zstd, brotli or LZ4-compressed files, also install the decompressors:
-
-```sh
-npm install hyparquet-compressors
-```
+Snappy, gzip, zstd, Brotli and LZ4-compressed files all read: the plugin brings the decompressors
+(`hyparquet-compressors`) and loads them only for files that need them.
 
 Without the plugin, reading Parquet fails with `SMALT_PLUGIN_MISSING`, and the message names the plugin to install.
 

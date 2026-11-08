@@ -37,7 +37,7 @@ These are the minified sizes, with the gzipped size in brackets:
 
 Optional features are [plugins](./plugins) and are not included: `@smaltdb/io` (CSV and JSON), `@smaltdb/external`
 (files, URLs, S3 and Azure) and `@smaltdb/parquet`. The plugins you install are bundled into your engine worker. The
-Parquet plugin also adds hyparquet and, if you install it, hyparquet-compressors.
+Parquet plugin also adds hyparquet, and hyparquet-compressors for files compressed with something other than Snappy.
 
 ## Storage
 

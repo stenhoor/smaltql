@@ -8,7 +8,7 @@ plugins it uses.
 |---|---|---|
 | `@smaltdb/io` | The CSV, TSV, JSON and NDJSON formats for [external data](./external-data); `read_csv()` and `read_json()`; [import and export](./import-export) with `importCSV`, `importJSON`, `exportCSV` and `exportJSON` from `@smaltdb/io/client` | Nothing |
 | `@smaltdb/external` | Where [external data](./external-data) is read from: registered files (`file:<name>`), `http://` and `https://` URLs, S3 (`s3://`), Azure Blob Storage (`az://`, `azure://`) and, in Node, local paths. The connection types `http` (also `https`), `s3` and `azure`. `registerFile`, `registerCredentials` and `setFetch` from `@smaltdb/external/client` | Nothing |
-| `@smaltdb/parquet` | The Parquet format; `read_parquet()` | `hyparquet`; optionally `hyparquet-compressors` |
+| `@smaltdb/parquet` | The Parquet format; `read_parquet()` | `hyparquet`, `hyparquet-compressors` |
 
 Reading external data needs a format and a source. `read_csv('file:prices.csv')` needs `@smaltdb/io` for the format and
 `@smaltdb/external` for `file:`. `read_parquet('https://…')` needs `@smaltdb/parquet` and `@smaltdb/external`.
@@ -24,8 +24,7 @@ worker an entry script that lists your plugins.
    npm install @smaltworks/smaltql smaltdb @smaltdb/io @smaltdb/external @smaltdb/parquet
    ```
 
-   For Parquet files compressed with gzip, zstd, brotli or LZ4, also install `hyparquet-compressors`. Snappy and
-   uncompressed files need nothing more.
+   The Parquet plugin brings its own decompressors for gzip, zstd, Brotli and LZ4 files.
 
 2. Write an engine worker entry that serves the engine with your plugins:
 
