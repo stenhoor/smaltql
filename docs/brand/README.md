@@ -13,7 +13,7 @@ layer's cobalt magenta (`#B0249F`; text `#981C89`, on dark `#F57FE6`). `alt` sta
 | `star-mark.svg` / `star-mark-on-dark.svg` | The Star (`*`) mark alone. The docs hero. |
 | `app-icon.svg` | App icons, social avatars. |
 | `favicon-32.svg`, `favicon-16.svg` | Browser tabs. |
-| `work-in-progress.svg` / `-on-dark` | The stage badge, from smalt-brand `badges/` (commit `d9b0097`). Site and README. |
-| `a-smaltworks-project.svg` / `-on-dark` | The family badge, from smalt-brand `badges/` (commit `d9b0097`). Site foot and README. |
+| `work-in-progress.svg` / `-on-dark` | The stage badge, from smalt-brand `badges/` (commit `3ee6e11`). Site and README. |
+| `a-smaltworks-project.svg` / `-on-dark` | The family badge, from smalt-brand `badges/` (commit `3ee6e11`). Site foot and README. |
 
 The `-on-dark` files are transparent with light ink: they are for dark backgrounds only and look blank in light previews.

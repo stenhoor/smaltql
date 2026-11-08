@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: 'sm<span class="alt">alt</span><span class="suffix language">ql</span>'
-  text: Small. Alternative. Familiar.
+  text: 'Small. Alternative.<br>Familiar.'
   tagline: The SQL you know, for smaltdb.
   image:
     light: /star-mark.svg
