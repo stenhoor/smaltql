@@ -12,7 +12,7 @@ import type { Catalog } from 'smaltdb/language';
 import { isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
-import { comparisonRule } from 'smaltdb/language';
+import { comparisonRule, engineFunctions } from 'smaltdb/language';
 import { CollSrc, NO_META, type SqlMeta, collationName, metaOf, setMeaning, withMeaning } from './meaning.js';
 
 export interface ColumnBinding {
@@ -356,7 +356,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   if (isAgg) {
     if (!scope.aggregateRef) throw new SmaltError('SMALT_ERROR', `misuse of aggregate function ${name}()`);
     const b = scope.aggregateRef(e);
-    return withMeaning({ k: 'slot', reg: b.reg, type: b.type }, { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
+    return withMeaning(sqlValue({ k: 'slot', reg: b.reg, type: b.type }, undefined), { collation: b.collation, collSrc: CollSrc.None, affinity: 'NONE' });
   }
   if (e.distinct || e.star || e.filter) throw new SmaltError('SMALT_ERROR', `DISTINCT/FILTER/* is only valid with aggregate functions`);
   if (name === 'current_time' || name === 'current_date' || name === 'current_timestamp') {
@@ -381,13 +381,37 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
     if (p.kind !== 'literal' || !p.isReal || typeof p.value !== 'number' || Object.is(p.value, -0) || !(p.value >= 0 && p.value <= 1))
       throw new SmaltError('SMALT_ERROR', 'second argument to likelihood() must be a constant between 0.0 and 1.0');
   }
-  const args = e.args.map((a) => bindExpr(a, scope));
+  // The engine's date and list functions take the values under SQL's text (smaltdb ADR 0022, step 1).
+  const typed = TYPED_ARGS.has(name) || name.startsWith('list_') || name.startsWith('struct_');
+  const args = e.args.map((a) => {
+    const b = bindExpr(a, scope);
+    return typed ? (temporalUnder(b) ?? nestedUnder(b) ?? b) : b;
+  });
   // A function's result type follows from its arguments' types (and collations).
-  const type = resultType(name, args.map((a) => ({ type: typeOf(a), collation: collationName(metaOf(a).collation) })));
+  const argTypes = args.map((a) => ({ type: typeOf(a), collation: collationName(metaOf(a).collation) }));
+  const type = resultType(name, argTypes);
   // Collation of a function result: from its first argument when that argument carries one.
   const first = args[0] ? metaOf(args[0]) : NO_META;
   const explicit = first.collSrc === CollSrc.Explicit;
-  return withMeaning(call(name, args, type), { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' });
+  const meaning = { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' as const };
+  return withMeaning(sqlValue(call(name, args, type), engineFunctions.resultType(name, argTypes)), meaning);
+}
+
+/** Functions whose arguments are the engine's dates and times, not SQL's text of them. */
+const TYPED_ARGS = new Set([
+  'year', 'month', 'day', 'weekday', 'day_of_year', 'hour', 'minute', 'second', 'microsecond',
+  'format_temporal', 'trunc_temporal', 'offset_by', 'to_zone', 'from_zone', 'zone_offset', 'cast_date', 'cast_datetime',
+]);
+
+/**
+ * A value as SQL holds it (smaltdb ADRs 0018–0020): a date, time, list or struct as its text, as columns read; a truth
+ * value as 0 / 1.
+ */
+function sqlValue(b: BoundExpr, engineType: StaticType | undefined): BoundExpr {
+  const t = typeOf(b);
+  if (isTemporal(t) || isNested(t)) return call('cast_text', [b], 'text');
+  if (engineType === 'bool') return call('cast_integer', [b], 'int');
+  return b;
 }
 
 const CAST_FUNCTIONS: Record<string, string> = { INTEGER: 'cast_integer', REAL: 'cast_real', TEXT: 'cast_text', BLOB: 'cast_blob' };
