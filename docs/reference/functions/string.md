@@ -68,6 +68,29 @@ SELECT lower('Hello World') AS a, upper('Hello World') AS b, lower('ÉCOLE') AS 
 
 For case-insensitive comparison of ASCII text, `COLLATE NOCASE` is usually a better fit; see [Expressions](../sql/expressions).
 
+### lower_unicode, upper_unicode {#lower_unicode}
+
+```
+lower_unicode(X)
+upper_unicode(X)
+```
+
+`X` as text with the letters of every script changed to lower or upper case, by Unicode's rules: a letter may become
+more than one (`ß` becomes `SS`). These are smaltdb extensions; `lower` and `upper` change ASCII letters only, as in
+SQLite.
+
+- **Returns:** text; NULL for NULL. Numbers are converted to text first.
+
+```sql
+SELECT lower_unicode('ÉCOLE') AS lower_e, upper_unicode('straße') AS sharp_s, lower_unicode('ΣΑΣ') AS final_sigma;
+```
+
+| lower_e | sharp_s | final_sigma |
+| --- | --- | --- |
+| école | STRASSE | σας |
+
+For text with regular expressions, see [Regular expressions](./regex).
+
 ## Substrings
 
 ### substr {#substr}

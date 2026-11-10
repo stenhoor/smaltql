@@ -1,6 +1,6 @@
 # Math functions
 
-Numeric functions: [`abs`](#abs), [`round`](#round), [`sign`](#sign), [`random`](#random), and SQLite's math functions:
+Numeric functions: [`abs`](#abs), [`round`](#round), [`round_even`](#round_even), [`sign`](#sign), [`random`](#random), [`isnan`](#isnan), and SQLite's math functions:
 
 | Group | Functions |
 | --- | --- |
@@ -246,6 +246,47 @@ SELECT round(2.675, 2) AS r;
 | r |
 | --- |
 | 2.67 |
+
+## round_even {#round_even}
+
+```
+round_even(X)
+round_even(X, DIGITS)
+```
+
+`X` rounded to `DIGITS` places after the point (default 0), with a half rounded to the even digit: `2.5` gives `2`,
+`3.5` gives `4`. Whether a value is a half is decided on its exact binary value, so `2.675`, stored just below it,
+gives `2.67`. `round` rounds halves away from zero, as in SQLite. A smaltdb extension.
+
+- **Returns:** REAL; NULL for NULL. Text converts as a number, and text that isn't one is 0.
+
+```sql
+SELECT round(2.5) AS "round", round_even(2.5) AS even, round_even(3.5) AS odd_up, round_even(-2.5) AS negative,
+       round_even(2.675, 2) AS two_places;
+```
+
+| round | even | odd_up | negative | two_places |
+| --- | --- | --- | --- | --- |
+| 3 | 2 | 4 | -2 | 2.67 |
+
+## isnan {#isnan}
+
+```
+isnan(X)
+```
+
+1 when `X` is NaN, else 0. SQL itself gives NULL where IEEE arithmetic gives NaN (`0.0 / 0.0`), but a table another
+language wrote (smaltdf, a Parquet file) can hold NaN, and SQL shows it as `NaN`. A smaltdb extension.
+
+- **Returns:** 1 or 0; NULL for NULL.
+
+```sql
+SELECT isnan(1.5) AS number, isnan(0.0 / 0.0) AS sql_division, isnan(NULL) AS "null";
+```
+
+| number | sql_division | null |
+| --- | --- | --- |
+| 0 | NULL | NULL |
 
 ## sign {#sign}
 

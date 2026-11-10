@@ -1,6 +1,6 @@
 # Date and time functions
 
-smaltdb has no separate date or time storage type. Dates and times are stored as ISO-8601 text (`'2024-03-15 13:45:30'`), as a julian day number (REAL), or as a Unix timestamp (INTEGER), and these functions convert between the three. They are a port of SQLite 3.54's `date.c` and are tested against SQLite's own WebAssembly build, so they give the same results, including NULL for invalid input.
+smaltdb has no separate date or time storage type. Dates and times are stored as ISO-8601 text (`'2024-03-15 13:45:30'`), as a julian day number (REAL), or as a Unix timestamp (INTEGER), and these functions convert between the three. They are a port of SQLite 3.54's `date.c` and are tested against SQLite's own WebAssembly build, so they give the same results, including NULL for invalid input. Functions SQLite doesn't have (`make_date`, date parts, `date_trunc`, `INTERVAL`, time zones) are in [Dates, times and zones](./dates).
 
 | Function | Returns |
 | --- | --- |

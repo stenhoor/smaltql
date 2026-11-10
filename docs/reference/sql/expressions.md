@@ -19,7 +19,13 @@ expr:
   | expr COLLATE collation
   | function(args) [FILTER (WHERE expr)] [OVER window]
   | (expr)
+  | expr [NOT] REGEXP expr                          -- smaltdb extensions:
+  | ARRAY[expr [, ...]] | expr = ANY (expr)
+  | (expr).field
+  | {DATE | TIME | TIMESTAMP} 'text' | expr {+ | -} INTERVAL 'text'
 ```
+
+The forms after `(expr)` are [smaltdb extensions](#smaltdb-extensions).
 
 ## Operator precedence
 
@@ -163,7 +169,7 @@ SELECT 'Hello' LIKE 'h%' AS a, 'Hello' GLOB 'h*' AS b, 'Hello' GLOB 'H?llo' AS c
 | --- | --- | --- | --- | --- |
 | 1 | 0 | 1 | 1 | 1 |
 
-`x REGEXP p` is true when the JavaScript regular expression `p` matches `x` anywhere ([smaltdb extensions](../functions/extensions#regexp)). `MATCH` is parsed, but no function implements it, so it fails with `no such function: match` (`SMALT_ERROR`), as in SQLite without extensions.
+`x REGEXP p` is true when the JavaScript regular expression `p` matches `x` anywhere ([regular expressions](../functions/regex#regexp_like)). `MATCH` is parsed, but no function implements it, so it fails with `no such function: match` (`SMALT_ERROR`), as in SQLite without extensions.
 
 ## BETWEEN
 
@@ -275,6 +281,28 @@ SELECT 'abc' = 'ABC' AS plain, 'abc' = 'ABC' COLLATE NOCASE AS nocase, 'x  ' = '
 ## Parameters and special values
 
 Parameters (`?`, `?NNN`, `:name`, `@name`, `$name`) are described in the [lexical structure](./#parameters). `CURRENT_DATE`, `CURRENT_TIME` and `CURRENT_TIMESTAMP` give the current UTC date (`YYYY-MM-DD`), time (`HH:MM:SS`) and both (`YYYY-MM-DD HH:MM:SS`); the current time is read once per statement, so every row sees the same value.
+
+## smaltdb extensions {#smaltdb-extensions}
+
+Forms SQLite doesn't have, each described with its functions:
+
+| Expression | Result | Entry |
+| --- | --- | --- |
+| `X [NOT] REGEXP P` | 1 if the regular expression `P` matches `X` | [Regular expressions](../functions/regex#regexp_like) |
+| `ARRAY[a, b, …]` | A list of the values | [List functions](../functions/list#array) |
+| `V = ANY (L)` | 1 if an element of the list `L` equals `V` | [List functions](../functions/list#array_contains) |
+| `(s).name` | A field of a struct | [Struct fields](./select#struct-fields) |
+| `DATE '…'`, `TIME '…'`, `TIMESTAMP '…'` | A checked date, time or date and time | [Typed literals](../functions/dates#literals) |
+| `X + INTERVAL '…'`, `X - INTERVAL '…'` | A date or time moved by years down to microseconds | [INTERVAL](../functions/dates#interval) |
+
+```sql
+SELECT 'abc' REGEXP '^a' AS starts_with_a, 2 = ANY (ARRAY[1, 2]) AS has_two,
+       DATE '2026-01-31' + INTERVAL '1 month' AS next_month;
+```
+
+| starts_with_a | has_two | next_month |
+| --- | --- | --- |
+| 1 | 1 | 2026-02-28 |
 
 ## Not supported
 

@@ -205,6 +205,30 @@ ORDER BY points, player;
 | bob | 20 | dan | bob | cat | ann |
 | cat | 20 | dan | cat | cat | ann |
 
+### IGNORE NULLS {#ignore-nulls}
+
+```
+lag(X …) IGNORE NULLS OVER (…)
+```
+
+Written between a navigation function's call and `OVER`, `IGNORE NULLS` makes `lag`, `lead`, `first_value`,
+`last_value` and `nth_value` skip the rows where `X` is NULL: `lag` gives the nearest earlier non-NULL value, and so
+on. Without it, NULLs count as rows, as in SQLite. Other window functions don't take it. A smaltdb extension.
+
+```sql
+SELECT i, x, lag(x) OVER (ORDER BY i) AS prev, lag(x) IGNORE NULLS OVER (ORDER BY i) AS prev_value,
+       first_value(x) IGNORE NULLS OVER (ORDER BY i) AS first_value
+FROM (SELECT 1 AS i, NULL AS x UNION ALL SELECT 2, 10 UNION ALL SELECT 3, NULL UNION ALL SELECT 4, 30)
+ORDER BY i;
+```
+
+| i | x | prev | prev_value | first_value |
+| --- | --- | --- | --- | --- |
+| 1 | NULL | NULL | NULL | NULL |
+| 2 | 10 | NULL | NULL | 10 |
+| 3 | NULL | 10 | 10 | 10 |
+| 4 | 30 | NULL | 10 | 10 |
+
 ## Aggregate functions as window functions {#aggregate-functions-as-window-functions}
 
 Every [aggregate function](./aggregate) (`count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, `string_agg`) becomes a window function when it has an `OVER` clause. It then aggregates the rows of the current row's frame, and `FILTER (WHERE …)` restricts which frame rows count. Scalar functions cannot be used with `OVER` (`abs() may not be used as a window function`).
