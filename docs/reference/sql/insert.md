@@ -23,7 +23,7 @@ CREATE TABLE stock(
 
 Without a column list, each row must give a value for every column, in table order. With a column list, the other columns get their `DEFAULT` (or NULL). An `INTEGER PRIMARY KEY` column left out, or given NULL, gets the next rowid: one more than the largest in the table.
 
-```sql play
+```sql
 INSERT INTO stock VALUES (1, 'pen', 10);
 INSERT INTO stock(sku) VALUES ('ink'), ('pad');
 SELECT * FROM stock

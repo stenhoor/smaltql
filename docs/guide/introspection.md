@@ -52,7 +52,7 @@ Every view has the standard `table_catalog` and `table_schema` columns (always `
 
 ### Tables and views
 
-```sql play
+```sql
 SELECT table_name, table_type, is_insertable_into
 FROM information_schema.tables
 ORDER BY table_name;

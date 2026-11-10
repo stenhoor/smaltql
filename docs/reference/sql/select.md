@@ -35,7 +35,7 @@ INSERT INTO emp VALUES
 
 `*` selects every column of every table in `FROM`, and `table.*` every column of one table. Any other expression may have an alias; without one, the result column is named after the column, or after the expression's source text (see [column names](./#column-names-in-results)).
 
-```sql play
+```sql
 SELECT e.name, salary * 12 AS yearly, upper(name) FROM emp e WHERE id <= 2
 ```
 

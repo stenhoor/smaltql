@@ -1,3 +1,9 @@
+---
+# The examples on this page need the @smaltdb/io and @smaltdb/external plugins and the files the docs tests
+# register, which the playgrounds do not load.
+playground: false
+---
+
 # External data
 
 smaltdb can query data that lives outside the database (CSV, TSV, JSON, NDJSON and Parquet files, from a URL, an S3 bucket, Azure Blob Storage, a file the user picked, or a path in Node) with the same SQL as local tables. External data is read-only: smaltdb reads it, but never writes to it.

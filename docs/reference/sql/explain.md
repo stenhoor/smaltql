@@ -29,7 +29,7 @@ Returns the plan as rows, one per operator, without running the query.
 | `notused` | always 0 (SQLite compatibility) |
 | `detail` | what the operator does |
 
-```sql play
+```sql
 EXPLAIN QUERY PLAN SELECT * FROM visit WHERE page = '/p7'
 ```
 

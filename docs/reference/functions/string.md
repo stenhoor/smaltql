@@ -14,7 +14,7 @@ length(X)
 
 For text, the number of characters. For a blob, the number of bytes. For a number, the length of its text form. NULL gives NULL.
 
-```sql play
+```sql
 SELECT length('héllo') AS a, length('😀') AS b, length(x'010203') AS c, length(12.50) AS d, length(NULL) AS e;
 ```
 

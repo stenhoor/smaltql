@@ -67,7 +67,7 @@ INSERT INTO users(email) VALUES ('ann@example.com');
 INSERT INTO users(email) VALUES ('bob@example.com'), ('ann@example.com');
 ```
 
-```sql play
+```sql
 SELECT email FROM users;
 ```
 

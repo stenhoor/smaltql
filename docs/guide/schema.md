@@ -42,7 +42,7 @@ Other type names work too, mapped by SQLite's rules: `VARCHAR(50)` is TEXT, `BIG
 
 Because tables are STRICT, a value is converted only when nothing is lost, and rejected otherwise:
 
-```sql play
+```sql
 INSERT INTO project(name, budget) VALUES ('Docs', '300');
 SELECT budget, typeof(budget) AS type FROM project WHERE name = 'Docs'
 ```

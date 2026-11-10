@@ -1,11 +1,12 @@
 // Playgrounds (BRAND.md, Documentation, rule 7): a code example a reader can run, change and share, on the page where
 // it is documented. At rest a playground is the example as written and its tested result, and it loads nothing. The
 // first Run loads smaltkit's editor and grid and starts the language's runner, which the site provides from its own
-// copy of the engine (never a CDN), once per visit. Every Run starts from the page's setup: the examples before it.
+// copy of the engine (never a CDN). Every Run starts from the page's setup, the examples before it, in a fresh database.
 //
 // Two parts:
-// - playgroundPlugin(): a markdown-it plugin for .vitepress/config.ts. A fence whose info string ends in `play`
-//   (```sql play) becomes a playground, with the result table printed under it (the tested result).
+// - playgroundPlugin(): a markdown-it plugin for .vitepress/config.ts. Every tested example of a playground language
+//   runs in place: at rest it is the example, a Run button and its tested result (the table printed under it, or the
+//   error its `docs:error` marker names); Run or Edit turns it into a playground where it stands.
 // - enablePlaygrounds(): wires the playgrounds in the browser, for .vitepress/theme/index.ts, with the site's runners.
 // sqlRunner() makes a runner from a smaltdb `open()` that reads SQL, such as smaltql's.
 
@@ -15,6 +16,11 @@
 export interface PlaygroundPluginOptions {
   /** The fence languages that can be playgrounds (default ['sql']). */
   languages?: string[]
+  /**
+   * Which examples run: 'every' tested example (the default), or only fences marked `play` (```sql play). Either way
+   * a fence marked `noplay`, and examples marked `docs:skip` or `docs:plugin`, don't.
+   */
+  run?: 'every' | 'marked'
 }
 
 interface Token {
@@ -37,18 +43,23 @@ const esc = (s: string): string =>
 const MARKER = /^<!--\s*(docs:[\s\S]*?)\s*-->\s*$/
 
 /**
- * Turns ```<lang> play fences into playgrounds. A playground's setup is what the page's examples tests run before it:
- * every example of the same language above it, in order, and the SQL of `<!-- docs:setup … -->` markers, leaving out
- * examples marked `docs:error` or `docs:skip`. In .vitepress/config.ts:
+ * Makes examples run in place. A playground's setup is what the page's examples test runs before it: every example of
+ * the same language above it, in order, and the SQL of `<!-- docs:setup … -->` markers, leaving out examples marked
+ * `docs:skip` or `docs:plugin` (one marked `docs:error` is run, its last statement expected to fail). Front matter
+ * `playground: false` turns a page's playgrounds off. An example marked `docs:error CODE` runs too, and its tested result is that error. In
+ * .vitepress/config.ts:
  *
  *     import { playgroundPlugin } from './theme/playground'
  *     markdown: { config: (md) => md.use(playgroundPlugin) }
  */
 export function playgroundPlugin(md: MarkdownIt, options: PlaygroundPluginOptions = {}): void {
   const languages = new Set(options.languages ?? ['sql'])
+  const every = (options.run ?? 'every') === 'every'
   md.core.ruler.push('sw_playground', (state) => {
     const out: Token[] = []
-    const setup = new Map<string, string[]>()
+    const setup = new Map<string, SetupStep[]>()
+    // A page's front matter can turn its playgrounds off (`playground: false`): its examples need what the site doesn't load.
+    const off = state.env?.frontmatter?.playground === false
     let markers: string[] = []
     let index = 0
     const html = (content: string): Token => {
@@ -64,7 +75,7 @@ export function playgroundPlugin(md: MarkdownIt, options: PlaygroundPluginOption
         if (m) {
           const setupSql = /^docs:setup\s+([\s\S]*)$/.exec(m[1])
           if (setupSql) for (const lang of languages) list(setup, lang).push(setupSql[1].trim())
-          else markers.push(m[1].split(/\s+/)[0])
+          else markers.push(m[1].trim())
           out.push(t)
           continue
         }
@@ -75,15 +86,22 @@ export function playgroundPlugin(md: MarkdownIt, options: PlaygroundPluginOption
         continue
       }
       const [lang, ...flags] = t.info.trim().split(/\s+/)
-      const tested = !markers.includes('docs:error') && !markers.includes('docs:skip')
+      const kinds = markers.map((m) => m.split(/\s+/)[0])
+      const fails = markers.find((m) => m.startsWith('docs:error'))?.split(/\s+/)[1]
+      // What this site's examples test runs (an example marked docs:plugin runs in the plugin's repository).
+      const tested = !kinds.includes('docs:skip') && !kinds.includes('docs:plugin')
+      const runnable = tested && !off
       markers = []
       if (!languages.has(lang)) {
         out.push(t)
         continue
       }
       const before = list(setup, lang).slice()
-      if (tested) list(setup, lang).push(t.content.trim())
-      if (!flags.includes('play')) {
+      // The examples test runs an example marked docs:error too, and expects its last statement to fail: a failing
+      // statement can still change the database (INSERT OR ROLLBACK ends the open transaction).
+      if (tested) list(setup, lang).push(fails !== undefined || kinds.includes('docs:error') ? { sql: t.content.trim(), fails: true } : t.content.trim())
+      if (!runnable || flags.includes('noplay') || !(every || flags.includes('play'))) {
+        t.info = [lang, ...flags.filter((f) => f !== 'play' && f !== 'noplay')].join(' ')
         out.push(t)
         continue
       }
@@ -107,7 +125,8 @@ export function playgroundPlugin(md: MarkdownIt, options: PlaygroundPluginOption
             `<button type="button" data-play="share">Share</button>` +
             `<a class="sw-play-app" data-play="app" hidden>Open in the app</a>` +
             `<span class="sw-play-status" role="status" aria-live="polite"></span></div>\n` +
-            `<div class="sw-play-result" data-tested>\n`,
+            `<div class="sw-play-result" data-tested>\n` +
+            (fails !== undefined ? `<p class="sw-play-fails">Fails with <code>${esc(fails)}</code></p>\n` : ''),
         ),
       )
       // The result table the examples test checks, if one follows directly.
@@ -140,15 +159,19 @@ export interface PlayResult {
   note?: string
 }
 
+/** One example of a playground's setup: its code, and whether its last statement is expected to fail. */
+export type SetupStep = string | { sql: string; fails: true }
+
 /** Runs a playground's code after its setup. Throws an Error, with `code` when the language has one, to show it. */
 export interface Runner {
-  run(code: string, setup: string[]): Promise<PlayResult>
+  run(code: string, setup: SetupStep[]): Promise<PlayResult>
 }
 
 /** The part of a smaltdb `Database` a SQL runner uses. */
 export interface SqlDatabase {
   query(sql: string, params?: unknown, options?: { rowMode: 'array' }): Promise<unknown[][] & { columns: string[] }>
   exec(sql: string): Promise<{ changes?: number }>
+  close?(): unknown
 }
 
 /** Splits SQL into statements at semicolons outside strings, quoted names and comments. */
@@ -187,42 +210,52 @@ export function splitSql(text: string): string[] {
 }
 
 /**
- * A SQL runner over one in-memory database, opened on the first Run and kept for the visit. Each Run clears it, runs the
- * setup, then the code's statements, and shows the last one's rows. In .vitepress/theme/index.ts, with the site's own
+ * A SQL runner that gives every Run a fresh in-memory database: the setup, then the code's statements, showing the last
+ * one's rows. Nothing a Run leaves behind (tables, an open transaction, a failed statement) reaches the next, so every
+ * Run starts where the examples test starts. `open` must give a new database each call, in a worker of its own (closing
+ * a database ends its worker); the runner opens the next Run's database as soon as a Run starts, so it is ready by the
+ * time the reader runs again, and closes each when its Run ends. In .vitepress/theme/index.ts, with the site's own
  * build of smaltql:
  *
  *     sql: sqlRunner(async () => (await import('@smaltworks/smaltql')).open('playground', { storage: 'memory' }))
  */
 export function sqlRunner(open: () => Promise<SqlDatabase>): () => Promise<Runner> {
   return async () => {
-    const db = await open()
+    let next = open()
+    await next // the first database starting is what the first Run waits for
     let queue: Promise<unknown> = Promise.resolve()
-    const clear = async () => {
-      const objects = await db.query(
-        "SELECT type, name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' AND type IN ('view', 'table')",
-        undefined,
-        { rowMode: 'array' },
-      )
-      const quote = (n: unknown) => `"${String(n).replace(/"/g, '""')}"`
-      for (const [type, name] of objects.filter((o) => o[0] === 'view')) await db.exec(`DROP ${String(type).toUpperCase()} ${quote(name)}`)
-      for (const [, name] of objects.filter((o) => o[0] === 'table')) await db.exec(`DROP TABLE ${quote(name)}`)
-    }
-    const run = async (code: string, setup: string[]): Promise<PlayResult> => {
-      await clear()
-      for (const block of setup) for (const s of splitSql(block)) await db.exec(s)
-      const statements = splitSql(code)
-      if (statements.length === 0) return { columns: [], rows: [], note: 'Nothing to run' }
-      for (const s of statements.slice(0, -1)) await db.exec(s)
-      const r = await db.query(statements[statements.length - 1], undefined, { rowMode: 'array' })
-      if (r.columns.length) return { columns: r.columns, rows: [...r] }
-      return { columns: [], rows: [], note: 'Done: the last statement returns no rows' }
+    const run = async (code: string, setup: SetupStep[]): Promise<PlayResult> => {
+      const db = await next
+      next = open()
+      next.catch(() => undefined) // a failure shows on the Run that waits for it
+      try {
+        for (const step of setup) {
+          const statements = splitSql(typeof step === 'string' ? step : step.sql)
+          for (const [i, s] of statements.entries()) {
+            if (typeof step !== 'string' && i === statements.length - 1) await db.exec(s).catch(() => undefined)
+            else await db.exec(s)
+          }
+        }
+        const statements = splitSql(code)
+        if (statements.length === 0) return { columns: [], rows: [], note: 'Nothing to run' }
+        for (const s of statements.slice(0, -1)) await db.exec(s)
+        const r = await db.query(statements[statements.length - 1], undefined, { rowMode: 'array' })
+        if (r.columns.length) return { columns: r.columns, rows: [...r] }
+        return { columns: [], rows: [], note: 'Done: the last statement returns no rows' }
+      } finally {
+        try {
+          await db.close?.()
+        } catch {
+          // The worker is gone either way.
+        }
+      }
     }
     return {
-      // One Run at a time: the database is shared.
+      // One Run at a time, so the databases start in order.
       run: (code, setup) => {
-        const next = queue.then(() => run(code, setup))
-        queue = next.catch(() => undefined)
-        return next
+        const result = queue.then(() => run(code, setup))
+        queue = result.catch(() => undefined)
+        return result
       },
     }
   }
@@ -363,7 +396,7 @@ export function enablePlaygrounds(options: PlaygroundOptions, doc: Document = do
       const runner = await start
       started.add(lang)
       say(play, 'Running…')
-      const setup = JSON.parse(play.getAttribute('data-setup') ?? '[]') as string[]
+      const setup = JSON.parse(play.getAttribute('data-setup') ?? '[]') as SetupStep[]
       const r = await runner.run(editor.value, setup)
       const ms = Math.round(performance.now() - t0)
       result.removeAttribute('data-tested')

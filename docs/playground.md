@@ -16,7 +16,7 @@ INSERT INTO sale VALUES (1, 1, 1, 2, '2026-10-01'), (2, 1, 2, 1, '2026-10-03'), 
   (4, 3, 1, 1, '2026-10-12'), (5, 2, 1, 3, '2026-11-02'), (6, 3, 2, 2, '2026-11-05');
 ```
 
-```sql play
+```sql
 SELECT c.city, p.name AS product, sum(s.quantity) AS sold, sum(s.quantity * p.price) AS revenue
 FROM sale s JOIN customer c ON c.id = s.customer_id JOIN product p ON p.id = s.product_id
 GROUP BY c.city, p.name

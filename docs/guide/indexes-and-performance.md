@@ -8,7 +8,7 @@ Full syntax is in the reference: [CREATE INDEX](../reference/sql/create-index), 
 
 The examples on this page use one table of 5,000 orders, filled with a recursive CTE:
 
-```sql play
+```sql
 CREATE TABLE orders (
   id       INTEGER PRIMARY KEY,
   customer TEXT,
@@ -335,8 +335,8 @@ SELECT tbl, idx, stat FROM smalt_stat WHERE idx IS NULL OR idx = 'orders_cust_pl
 
 | tbl | idx | stat |
 | --- | --- | --- |
-| orders | NULL | {"rows":5000,"ndv":[5000,501,2,96,302],"nulls":[0,0,0,0,0]} |
-| orders | orders_cust_placed | {"rows":5000,"avg":[10,3.3333333333333335]} |
+| orders | NULL | `{"rows":5000,"ndv":[5000,501,2,96,302],"nulls":[0,0,0,0,0]}` |
+| orders | orders_cust_placed | `{"rows":5000,"avg":[10,3.3333333333333335]}` |
 
 The table row holds the row count, the estimated distinct values (`ndv`) and the NULL count of each column. An index row holds the average number of rows per key prefix: 10 orders per customer, and about 3.3 per distinct (customer, placed) pair. The `ndv` values are estimates (HyperLogLog), so they can be slightly off, as the 501 here for 500 customers shows. The format of `stat` is internal and may change.
 

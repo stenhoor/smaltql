@@ -31,7 +31,7 @@ If other tables have foreign keys that reference it and enforcement is on, its r
 
 When a TEMP table shadows a main table of the same name, `DROP TABLE name` drops the TEMP table and `DROP TABLE main.name` the main one.
 
-```sql play
+```sql
 DROP TABLE t;
 SELECT name FROM sqlite_schema
 ```

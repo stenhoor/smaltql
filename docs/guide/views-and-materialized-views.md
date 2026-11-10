@@ -16,7 +16,7 @@ Full syntax: [CREATE VIEW and CREATE MATERIALIZED VIEW](../reference/sql/views).
 
 ## Sample data
 
-```sql play
+```sql
 CREATE TABLE sales (
   id       INTEGER PRIMARY KEY,
   region   TEXT,

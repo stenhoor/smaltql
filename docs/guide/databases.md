@@ -39,7 +39,7 @@ const db = await open('analytics', { pageSize: 16384, cacheMB: 64 });
 
 The page size of an open database can be read with a pragma:
 
-```sql play
+```sql
 PRAGMA page_size;
 ```
 

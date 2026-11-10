@@ -1,3 +1,9 @@
+---
+# The examples on this page need the @smaltdb/io and @smaltdb/external plugins and the files the docs tests
+# register, which the playgrounds do not load.
+playground: false
+---
+
 # information_schema
 
 The `information_schema` views describe the database's tables, columns, constraints, indexes, views and external data in the SQL-standard (PostgreSQL-like) shape. SQLite has none of them; smaltdb also offers SQLite's [`sqlite_schema`](#sqlite-schema) table and the schema [pragmas](./pragmas#schema-pragmas). For a task-oriented overview, see [Introspection](../../guide/introspection).
@@ -160,7 +166,7 @@ SELECT * FROM information_schema.external_tables
 
 | table_catalog | table_schema | table_name | location | format | connection_name | options |
 | --- | --- | --- | --- | --- | --- | --- |
-| main | main | rates | rates.csv | csv | api | {"header":1} |
+| main | main | rates | rates.csv | csv | api | `{"header":1}` |
 
 ## connections
 
@@ -180,7 +186,7 @@ SELECT * FROM information_schema.connections
 
 | connection_name | connection_type | url | credentials | options |
 | --- | --- | --- | --- | --- |
-| api | http | `https://example.com/data/` | token | {} |
+| api | http | `https://example.com/data/` | token | `{}` |
 
 ## table_constraints
 

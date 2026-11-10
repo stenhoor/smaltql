@@ -49,7 +49,7 @@ name([DISTINCT] X [, Y]) [FILTER (WHERE condition)]
 - **`ORDER BY` inside the call** (`group_concat(x, ',' ORDER BY y)`, SQLite 3.44+) is **not supported**: it fails with `SMALT_UNSUPPORTED`. To control the order of `group_concat`, aggregate over an ordered subquery (see [group_concat](#group_concat)).
 - An aggregate cannot be used in `WHERE`; filter groups with `HAVING`. See [SELECT](../sql/select).
 
-```sql play
+```sql
 SELECT count(*) AS rows, count(qty) AS with_qty, count(DISTINCT product) AS products,
        sum(qty) FILTER (WHERE product = 'apple') AS apples
 FROM sale;

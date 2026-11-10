@@ -35,7 +35,7 @@ Measured on the project's benchmark machine (Node, one million rows of five colu
 
 Add `WITH (storage = 'columnar')` after the column list:
 
-```sql play
+```sql
 CREATE TABLE events (
   id     INTEGER PRIMARY KEY,
   kind   TEXT,

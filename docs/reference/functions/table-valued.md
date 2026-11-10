@@ -1,3 +1,9 @@
+---
+# The examples on this page need the @smaltdb/io and @smaltdb/external plugins and the files the docs tests
+# register, which the playgrounds do not load.
+playground: false
+---
+
 # Table-valued functions
 
 A table-valued function is called in the `FROM` clause and returns rows, like a table. It can be joined, filtered and aliased like any table:

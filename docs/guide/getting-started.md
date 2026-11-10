@@ -40,7 +40,7 @@ await db.close();
 
 `open()` starts the engine worker and opens (or creates) the database. Every call returns a promise, so the main thread never waits on the database. The same SQL runs in the engine directly:
 
-```sql play
+```sql
 CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT NOT NULL);
 INSERT INTO notes(body) VALUES ('Hello, smaltql');
 SELECT id, body FROM notes;
