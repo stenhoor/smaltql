@@ -468,9 +468,24 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       // DuckDB: elements FROM to TO, both from 1 and included. The engine's list_slice takes an offset from 0 and a length.
       arity(3, 3);
       const [l, from, to] = [listArg(bindExpr(args[0]!, scope)), bindExpr(args[1]!, scope), bindExpr(args[2]!, scope)];
-      const offset = call('sub', [from, lit(1, 'int')], 'int');
-      const length = call('add', [call('sub', [to, from], 'int'), lit(1, 'int')], 'int');
-      return withMeaning(sqlValue(call('list_slice', [l, offset, length], typeOf(l)), undefined), plain);
+      // Each position as an offset from 0: positive from the start, negative from the end (-1 is the last), 0 the
+      // start; FROM's is where the slice begins, TO's one past where it ends, each clamped at 0 (smaltql#49).
+      const len = call('list_len', [l], 'int');
+      const zero = lit(0, 'int');
+      const at = (pos: BoundExpr, extra: number): BoundExpr => ({
+        k: 'case',
+        whens: [
+          { when: call('cmp_gt', [pos, zero], 'int'), then: call('add', [pos, lit(extra - 1, 'int')], 'int') },
+          { when: call('cmp_lt', [pos, zero], 'int'), then: call('add', [len, call('add', [pos, lit(extra, 'int')], 'int')], 'int') },
+          { when: call('cmp_eq', [pos, zero], 'int'), then: zero },
+        ],
+        else: lit(null, 'null'),
+        type: 'int',
+      });
+      const start = call('max', [at(from, 0), zero], 'int');
+      const end = call('max', [at(to, 1), zero], 'int');
+      const length = call('max', [call('sub', [end, start], 'int'), zero], 'int');
+      return withMeaning(sqlValue(call('list_slice', [l, start, length], typeOf(l)), undefined), plain);
     }
     case '#field': {
       // `(s).name` (Postgres): the engine's struct_field, the name resolved to its index from the struct's type.
