@@ -1731,6 +1731,16 @@ class Parser {
 
   /** Function call; positioned after `(`. */
   private call(name: string, pos: number): A.CallExpr {
+    if (name === 'extract' && (this.kinds[this.p] === TK_ID || this.kws[this.p] !== '') && this.kws[this.p + 1] === 'FROM') {
+      // `EXTRACT(field FROM x)` (SQL standard, Postgres; smaltdb ADR 0022): `date_part('field', x)`.
+      const field = String(this.vals[this.p] ?? this.kws[this.p]).toLowerCase();
+      const fpos = this.pos();
+      this.p += 2;
+      const x = this.expr();
+      this.expectOp(')');
+      const fieldLit: A.Expr = { kind: 'literal', pos: fpos, value: field, isReal: false, end: fpos };
+      return { kind: 'call', pos, name: 'date_part', args: [fieldLit, x], star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
+    }
     let star = false;
     let distinct = false;
     let args: A.Expr[] = [];

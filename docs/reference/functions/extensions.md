@@ -14,6 +14,24 @@ SELECT make_date(2026, 11, 7) AS d, make_datetime(2026, 11, 7, 14, 30) AS ts;
 | --- | --- |
 | 2026-11-07 | 2026-11-07 14:30:00 |
 
+These functions take SQL's date text too (`'2026-11-07'`, `'2026-11-07 10:30:00'`), and give NULL for text that isn't a date.
+
+- `EXTRACT(FIELD FROM X)`, `date_part('FIELD', X)`: the part as an integer. Fields: `year`, `month`, `day`, `hour`, `minute`, `second`, `microsecond`, `isodow` (Monday is 1), `doy` (day of the year).
+- `year(X)`, `month(X)`, `day(X)`, `hour(X)`, `minute(X)`, `second(X)`: the same parts as functions.
+- `date_trunc('UNIT', X)`: `X` cut to the start of its `year`, `quarter`, `month`, `week` (Monday), `day`, `hour`, `minute` or `second`.
+- `strptime(TEXT, FORMAT)`: text read with a `strftime` format (the codes of [strftime](./datetime#strftime)), or NULL.
+- `make_timestamp(…)` is `make_datetime(…)`, and `now()` is `CURRENT_TIMESTAMP`.
+
+```sql
+SELECT EXTRACT(month FROM '2026-11-07') AS m, year('2026-11-07') AS y,
+       date_trunc('month', '2026-11-07 10:30:00') AS month_start,
+       strptime('07/11/2026', '%d/%m/%Y') AS parsed;
+```
+
+| m | y | month_start | parsed |
+| --- | --- | --- | --- |
+| 11 | 2026 | 2026-11-01 00:00:00 | 2026-11-07 00:00:00 |
+
 ## Time zones {#zones}
 
 A zone is an IANA name (`Europe/Paris`), `UTC` or an offset (`+05:30`), and may come from a column. A date and time carries no zone.

@@ -9,7 +9,7 @@ describe('computed values as SQL holds them', () => {
   it.each([
     ["strftime('%Y', make_date(2026,1,1))", '2026'],
     ["date(make_date(2026,1,1), '+1 month')", '2026-02-01'],
-    ["parse_datetime('2026-11-07 10:00:00') > '2026-01-01'", 1],
+    ["strptime('2026-11-07 10:00:00', '%Y-%m-%d %H:%M:%S') > '2026-01-01'", 1],
     ['typeof(make_date(2026,11,7))', 'text'],
     ["list_of(1,2) || 'x'", '[1,2]x'],
     ['length(list_of(1,2))', 5],
@@ -21,7 +21,7 @@ describe('computed values as SQL holds them', () => {
   it('engine functions still take the values under the text', () => {
     expect(one('SELECT year(make_date(2026,11,7))')).toBe(2026);
     expect(one('SELECT cardinality(list_of(1,2,3))')).toBe(3);
-    expect(one("SELECT trunc_temporal(parse_datetime('2026-11-07 10:31:00'),'hour')")).toBe('2026-11-07 10:00:00');
+    expect(one("SELECT date_trunc('hour', make_datetime(2026,11,7,10,31))")).toBe('2026-11-07 10:00:00');
   });
 
   it('an aggregate list reads as JSON text', () => {

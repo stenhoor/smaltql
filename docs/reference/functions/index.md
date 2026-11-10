@@ -59,10 +59,13 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`CURRENT_TIME`](./datetime#current_date) | keyword | Current UTC time, `HH:MM:SS` |
 | [`CURRENT_TIMESTAMP`](./datetime#current_date) | keyword | Current UTC date and time, `YYYY-MM-DD HH:MM:SS` |
 | [`date(TIME, MOD, …)`](./datetime#date) | scalar | Date as `YYYY-MM-DD` |
+| [`date_part(FIELD, X)`](./extensions#dates) | scalar | A part of a date or time |
+| [`date_trunc(UNIT, X)`](./extensions#dates) | scalar | A date or time cut to a unit |
 | [`datetime(TIME, MOD, …)`](./datetime#datetime) | scalar | Date and time as `YYYY-MM-DD HH:MM:SS` |
 | [`degrees(X)`](./math#pi) | scalar | Radians to degrees |
 | [`dense_rank()`](./window#dense_rank) | window | Rank without gaps |
 | [`exp(X)`](./math#exp) | scalar | *e* to the power `X` |
+| [`EXTRACT(FIELD FROM X)`](./extensions#dates) | keyword | Same as `date_part` |
 | [`first(X [, KEY])`](./extensions#first-last) | aggregate | Value of the first row, or at the smallest `KEY` |
 | [`first_value(X)`](./window#first_value) | window | Value from the first row of the frame |
 | [`floor(X)`](./math#ceil) | scalar | Round down |
@@ -100,12 +103,14 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`ltrim(X [, CHARS])`](./string#ltrim) | scalar | Remove characters from the start |
 | [`make_date(Y, M, D)`](./extensions#dates) | scalar | Date from its parts |
 | [`make_datetime(Y, M, D, …)`](./extensions#dates) | scalar | Date and time from its parts |
+| [`make_timestamp(Y, M, D, …)`](./extensions#dates) | scalar | Same as `make_datetime` |
 | [`max(X)`](./aggregate#max) | aggregate | Largest value |
 | [`max(X, Y, …)`](./scalar#max) | scalar | Largest argument |
 | [`median(X)`](./aggregate#median) | aggregate | Median |
 | [`min(X)`](./aggregate#min) | aggregate | Smallest value |
 | [`min(X, Y, …)`](./scalar#min) | scalar | Smallest argument |
 | [`mod(X, Y)`](./math#mod) | scalar | Remainder of `X / Y`, as a REAL |
+| [`now()`](./extensions#dates) | scalar | Same as `CURRENT_TIMESTAMP` |
 | [`nth_value(X, N)`](./window#nth_value) | window | Value from the N-th row of the frame |
 | [`ntile(N)`](./window#ntile) | window | Bucket number 1..N |
 | [`nullif(X, Y)`](./scalar#nullif) | scalar | NULL if `X = Y`, else `X` |
@@ -150,6 +155,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`stddev_pop(X)`](./aggregate#variance) | aggregate | Population standard deviation |
 | [`strftime(FORMAT, TIME, MOD, …)`](./datetime#strftime) | scalar | Formatted date and time |
 | [`string_agg(X, SEP)`](./aggregate#string_agg) | aggregate | Same as `group_concat(X, SEP)` |
+| [`strptime(TEXT, FORMAT)`](./extensions#dates) | scalar | Text read as a date and time |
 | [`substr(X, START [, LENGTH])`](./string#substr) | scalar | Part of a string or blob |
 | [`substring(X, START [, LENGTH])`](./string#substr) | scalar | Same as `substr` |
 | [`sum(X)`](./aggregate#sum) | aggregate | Sum; NULL when there are no values |
@@ -170,6 +176,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`upper_unicode(X)`](./extensions#text) | scalar | Upper case of every script |
 | [`var_pop(X)`](./aggregate#variance) | aggregate | Population variance |
 | [`var_samp(X)`, `variance(X)`](./aggregate#variance) | aggregate | Sample variance |
+| [`year(X)`](./extensions#dates) | scalar | Year of a date; also `month`, `day`, `hour`, `minute`, `second` |
 | [`zeroblob(N)`](./scalar#zeroblob) | scalar | `N` zero bytes |
 | [`zone_offset(TS, ZONE)`](./extensions#zones) | scalar | Offset of a zone from UTC |
 
