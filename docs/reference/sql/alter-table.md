@@ -26,7 +26,7 @@ INSERT INTO customer VALUES (1, 'Ann', 'ann@example.com');
 
 Renames the table. References to it in other tables' `REFERENCES` clauses, in indexes and in views are rewritten; the new name is written in double quotes. The new name must not be in use (`there is already another table or index with this name: x`).
 
-```sql
+```sql play
 ALTER TABLE customer RENAME TO client;
 SELECT sql FROM sqlite_schema WHERE name = 'purchase'
 ```

@@ -21,31 +21,32 @@ hero:
       link: /reference/sql/
 
 features:
-  - title: The SQL you know
-    details: The SQLite dialect, with joins of every kind, CTEs (recursive too), window functions, upserts and RETURNING.
-    link: /guide/sqlite-differences
-    linkText: What differs from SQLite
-  - title: Strict types
-    details: Tables are STRICT, so a value must fit its column's type. ANY columns hold anything.
-    link: /reference/sql/types
-    linkText: Types
-  - title: Materialized views
-    details: CREATE, REFRESH and DROP MATERIALIZED VIEW. Queries that a materialized view answers read it instead of the base tables.
-    link: /reference/sql/views
-    linkText: Views
-  - title: Files and URLs as tables
-    details: read_csv, read_json and read_parquet, and external tables over HTTP, S3 and Azure Blob Storage, queried with plain SQL through plugins.
-    link: /reference/sql/external
-    linkText: External tables
-  - title: Columnar tables
-    details: "WITH (storage = 'columnar') stores a table as compressed column segments with zone maps, for scans and aggregates over many rows."
-    link: /reference/sql/create-table#columnar-tables
-    linkText: CREATE TABLE
-  - title: Plans you can read
-    details: EXPLAIN shows the plan the engine chose, EXPLAIN ANALYZE what it cost, and information_schema describes every object.
-    link: /reference/sql/explain
-    linkText: EXPLAIN
+  - title: Quick start
+    details: Five minutes, three steps, ending in SQL that runs on the page.
+    link: /guide/quick-start
+    linkText: Start
+  - title: Getting started
+    details: Installation, a tutorial that builds a small data layer, and the FAQ.
+    link: /guide/getting-started
+    linkText: Install
+  - title: User guide
+    details: Databases, queries, transactions, schema, indexes, views, analytics, import and external data.
+    link: /guide/databases
+    linkText: Read the guide
+  - title: Reference
+    details: Every statement and function, the client API, and the errors, with tested examples to run.
+    link: /reference/sql/
+    linkText: Look it up
 ---
+
+## What smaltql does
+
+- **The SQL you know:** The SQLite dialect, with joins of every kind, CTEs (recursive too), window functions, upserts and RETURNING. [What differs from SQLite →](/guide/sqlite-differences)
+- **Strict types:** Tables are STRICT, so a value must fit its column's type. ANY columns hold anything. [Types →](/reference/sql/types)
+- **Materialized views:** CREATE, REFRESH and DROP MATERIALIZED VIEW. Queries that a materialized view answers read it instead of the base tables. [Views →](/reference/sql/views)
+- **Files and URLs as tables:** read_csv, read_json and read_parquet, and external tables over HTTP, S3 and Azure Blob Storage, queried with plain SQL through plugins. [External tables →](/reference/sql/external)
+- **Columnar tables:** WITH (storage = 'columnar') stores a table as compressed column segments with zone maps, for scans and aggregates over many rows. [CREATE TABLE →](/reference/sql/create-table#columnar-tables)
+- **Plans you can read:** EXPLAIN shows the plan the engine chose, EXPLAIN ANALYZE what it cost, and information_schema describes every object. [EXPLAIN →](/reference/sql/explain)
 
 ## Quick start
 

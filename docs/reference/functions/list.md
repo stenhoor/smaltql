@@ -48,7 +48,7 @@ A list of the values, in order.
 - **Arguments:** any number of values, including none.
 - **Returns:** a list, shown as JSON text.
 
-```sql
+```sql play
 SELECT ARRAY[3, 1, 2] AS numbers, ARRAY['a', NULL] AS with_null, ARRAY[] AS empty;
 ```
 

@@ -8,7 +8,7 @@ Full syntax is in the reference: [CREATE INDEX](../reference/sql/create-index), 
 
 The examples on this page use one table of 5,000 orders, filled with a recursive CTE:
 
-```sql
+```sql play
 CREATE TABLE orders (
   id       INTEGER PRIMARY KEY,
   customer TEXT,

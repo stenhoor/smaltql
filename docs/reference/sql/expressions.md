@@ -45,7 +45,7 @@ From tightest to loosest binding. Operators on one line have equal precedence an
 | `AND` |
 | `OR` |
 
-```sql
+```sql play
 SELECT 1 + 2 * 3 AS a, (1 + 2) * 3 AS b, NOT 1 = 2 AS c, 1 = 1 AND 0 OR 1 AS d
 ```
 

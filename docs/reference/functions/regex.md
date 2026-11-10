@@ -34,7 +34,7 @@ regexp_like(X, P [, FLAGS])
 
 - **Returns:** 1 or 0, or NULL.
 
-```sql
+```sql play
 SELECT 'abc' REGEXP 'b.' AS anywhere, 'abc' REGEXP '^b' AS at_start, regexp_like('ABC', 'b', 'i') AS ignoring_case,
        'abc' NOT REGEXP 'z' AS no_z, NULL REGEXP 'a' AS null_text;
 ```

@@ -43,7 +43,7 @@ sorts after `'2026-11-07'`.
 - **Time zone**: `'localtime'` and `'utc'` use the time zone of the host (the browser or Node.js process) through JavaScript's `Date`.
 - **Fractional seconds**: stored to the millisecond. The text results drop them unless you add the [`subsec`](#subsec) modifier.
 
-```sql
+```sql play
 SELECT date('2024-02-30') AS rolled_over, date('2024-13-01') AS bad_month, datetime('nonsense') AS bad_text, date('10000-01-01') AS out_of_range, date(NULL) AS null_input;
 ```
 
