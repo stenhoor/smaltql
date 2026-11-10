@@ -267,6 +267,13 @@ export interface TableRef extends Node {
   alias?: string;
   /** `INDEXED BY name` / `NOT INDEXED` hints. */
   indexedBy?: string | null;
+  /** `TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]`. */
+  sample?: TableSample;
+}
+
+export interface TableSample {
+  percent: Expr;
+  seed?: Expr;
 }
 
 export interface SubqueryRef extends Node {

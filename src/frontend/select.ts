@@ -1150,7 +1150,15 @@ class FrontEnd {
     const db = table.schema === 'temp' ? 'temp' : item.schema?.toLowerCase() === 'main' ? 'main' : undefined;
     const scan: Mutable<Extract<PlanOp, { op: 'scan' }>> = db ? { op: 'scan', table: table.name, db, columns } : { op: 'scan', table: table.name, columns };
     if (item.indexedBy !== undefined) scan.indexedBy = item.indexedBy;
-    return scan;
+    if (!item.sample) return scan;
+    // TABLESAMPLE (smaltdb ADR 0022): the engine's sample, that percent of the rows, without replacement, in their order.
+    const none = this.compileScope(new FeScope(null));
+    const percent = bindAst(item.sample.percent, none);
+    const fraction = { k: 'call', fn: 'mul', args: [percent, { k: 'lit', value: 0.01, type: 'real' }], type: 'real' } as PlanExpr;
+    const s = item.sample.seed;
+    if (s && !(s.kind === 'literal' && typeof s.value === 'number' && Number.isInteger(s.value))) throw new SmaltError('SMALT_ERROR', 'REPEATABLE takes an integer');
+    const seed = s ? (s as { value: number }).value : Math.floor(Math.random() * 2 ** 31);
+    return { op: 'sample', input: scan, fraction, replace: false, seed } as PlanOp;
   }
 
   /**

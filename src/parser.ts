@@ -287,6 +287,29 @@ class Parser {
   }
 
   /** `[AS] alias` after a result column or FROM item. */
+  /** `TABLESAMPLE BERNOULLI` or `TABLESAMPLE SYSTEM` starts here. */
+  private isTableSample(): boolean {
+    const word = (i: number): string => (this.kinds[i] === TK_ID ? String(this.vals[i]).toUpperCase() : '');
+    return word(this.p) === 'TABLESAMPLE' && (word(this.p + 1) === 'BERNOULLI' || word(this.p + 1) === 'SYSTEM');
+  }
+
+  /** `TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]` (SQL standard, Postgres; smaltdb ADR 0022). */
+  private optTableSample(): A.TableSample | undefined {
+    if (!this.isTableSample()) return undefined;
+    this.p += 2;
+    this.expectOp('(');
+    const percent = this.expr();
+    this.expectOp(')');
+    let seed: A.Expr | undefined;
+    if (this.kinds[this.p] === TK_ID && String(this.vals[this.p]).toUpperCase() === 'REPEATABLE') {
+      this.p++;
+      this.expectOp('(');
+      seed = this.expr();
+      this.expectOp(')');
+    }
+    return { percent, ...(seed ? { seed } : {}) };
+  }
+
   private optAlias(): string | undefined {
     if (this.acceptKw('AS')) return this.nameOrString();
     const k = this.kinds[this.p];
@@ -633,8 +656,10 @@ class Parser {
       if (named) ref.named = named;
       return ref;
     }
-    const alias = this.optAlias();
-    return { kind: 'table', pos, schema: q.schema, name: q.name, alias, indexedBy: this.optIndexedBy(), end: this.ends[this.p - 1] };
+    const alias = this.isTableSample() ? undefined : this.optAlias();
+    const indexedBy = this.optIndexedBy();
+    const sample = this.optTableSample();
+    return { kind: 'table', pos, schema: q.schema, name: q.name, alias, indexedBy, ...(sample ? { sample } : {}), end: this.ends[this.p - 1] };
   }
 
   private optIndexedBy(): string | null | undefined {
