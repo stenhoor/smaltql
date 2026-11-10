@@ -32,6 +32,19 @@ SELECT EXTRACT(month FROM '2026-11-07') AS m, year('2026-11-07') AS y,
 | --- | --- | --- | --- |
 | 11 | 2026 | 2026-11-01 00:00:00 | 2026-11-07 00:00:00 |
 
+`DATE '…'` and `TIMESTAMP '…'` are typed literals: the text must be a date (`2026-11-07`) or a date and time, or the statement fails. `x + INTERVAL '…'` and `x - INTERVAL '…'` move a date or time by years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds or microseconds (`'1 month 2 days'`). Months move on the calendar and keep the day of the month, or take the last day of a shorter month. An `INTERVAL` can't be used on its own.
+
+```sql
+SELECT DATE '2026-01-31' + INTERVAL '1 month' AS next_month,
+       TIMESTAMP '2026-11-07 10:00:00' - INTERVAL '30 minutes' AS earlier;
+```
+
+| next_month | earlier |
+| --- | --- |
+| 2026-02-28 | 2026-11-07 09:30:00 |
+
+A date plus a number keeps SQLite's meaning (`'2026-11-07' + 1` is `2027`): add an `INTERVAL '1 day'` to move by days.
+
 ## Time zones {#zones}
 
 A zone is an IANA name (`Europe/Paris`), `UTC` or an offset (`+05:30`), and may come from a column. A date and time carries no zone.
