@@ -23,8 +23,10 @@ describe('struct fields (ADR 0022 step 6)', () => {
     expect((await db()).prepare('SELECT upper((s).NAME), (s).score * 2 FROM t WHERE s IS NOT NULL').all()).toEqual([['A', 5]]);
   });
 
-  it('a field that is a list or struct is not supported yet', async () => {
-    await expect(db().then((d) => d.prepare('SELECT (s).tags FROM t').all())).rejects.toThrow(/not supported yet/);
+  it('a field that is a list reads as JSON text, and feeds list functions and unnest', async () => {
+    const d = await db();
+    expect(d.prepare('SELECT (s).tags, cardinality((s).tags) FROM t WHERE s IS NOT NULL').all()).toEqual([['["x","y"]', 2]]);
+    expect(d.prepare('SELECT u.tag FROM t, unnest((t.s).tags) AS u(tag)').all()).toEqual([['x'], ['y']]);
   });
 
   it('errors', async () => {
