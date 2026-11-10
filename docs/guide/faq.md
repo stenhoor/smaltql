@@ -89,7 +89,7 @@ enforcement off, run `PRAGMA foreign_keys = OFF` outside a transaction.
 ### Are JSON functions, math functions, triggers or full-text search available?
 
 The math functions are: `sqrt`, `pow`, `exp`, `ln`, `log`, `ceil`, `floor`, `mod`, the trigonometric functions and the
-rest of SQLite's set (see [Math functions](../reference/functions/math)). `json_*` functions, `CREATE TRIGGER`,
+rest of SQLite's set (see [Math functions](../reference/functions/math/)). `json_*` functions, `CREATE TRIGGER`,
 virtual tables (so no full-text search) and `ATTACH` aren't supported yet. The
 [function list](../reference/functions/) shows exactly what is available.
 

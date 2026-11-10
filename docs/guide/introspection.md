@@ -6,7 +6,7 @@ smaltdb describes its own schema in three ways:
 - **`sqlite_schema`**: the catalog table, as in SQLite, with the `CREATE` statement of every object.
 - **Pragmas** (`PRAGMA table_info(t)`, or as table-valued functions such as `pragma_table_info('t')`), compatible with SQLite.
 
-Reference: [information_schema](../reference/sql/information-schema), [PRAGMA](../reference/sql/pragmas), [table-valued functions](../reference/functions/table-valued).
+Reference: [information_schema](../reference/sql/information-schema), [PRAGMA](../reference/sql/pragmas), [table-valued functions](../reference/functions/table-valued/).
 
 ## Sample schema
 

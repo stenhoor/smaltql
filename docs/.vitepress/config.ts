@@ -17,6 +17,17 @@ const ENGINE = 'https://smaltdb.dev'
 // agent guide read it.
 const GRAMMAR = readFileSync(path.resolve(here, '../grammar.ebnf'), 'utf8')
 
+// A function group in the sidebar: its page, then a page per function, in the order of the group page's list
+// (`- [name](./page): summary`), so the sidebar and the group page cannot disagree.
+function functionGroup(text: string, group: string) {
+  const md = readFileSync(path.resolve(here, `../reference/functions/${group}/index.md`), 'utf8')
+  const items = [...md.matchAll(/^- \[(.+?)\]\(\.\/([\w-]+)\): /gm)].map(([, label, page]) => ({
+    text: label.replace(/`/g, ''),
+    link: `/reference/functions/${group}/${page}`,
+  }))
+  return { text, link: `/reference/functions/${group}/`, collapsed: true, items }
+}
+
 export default defineConfig({
   title: 'smaltql',
   description: 'SQL for smaltdb, a fast alternative database for the browser, written in TypeScript.',
@@ -152,17 +163,17 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: 'All functions', link: '/reference/functions/' },
-              { text: 'Scalar', link: '/reference/functions/scalar' },
-              { text: 'String', link: '/reference/functions/string' },
-              { text: 'Math', link: '/reference/functions/math' },
-              { text: 'Date and time', link: '/reference/functions/datetime' },
-              { text: 'Dates, times and zones', link: '/reference/functions/dates' },
-              { text: 'Lists', link: '/reference/functions/list' },
-              { text: 'Regular expressions', link: '/reference/functions/regex' },
-              { text: 'Aggregate', link: '/reference/functions/aggregate' },
-              { text: 'Window', link: '/reference/functions/window' },
+              functionGroup('Scalar', 'scalar'),
+              functionGroup('String', 'string'),
+              functionGroup('Math', 'math'),
+              functionGroup('Date and time', 'datetime'),
+              functionGroup('Dates, times and zones', 'dates'),
+              functionGroup('Lists', 'list'),
+              functionGroup('Regular expressions', 'regex'),
+              functionGroup('Aggregate', 'aggregate'),
+              functionGroup('Window', 'window'),
+              functionGroup('Table-valued', 'table-valued'),
               { text: 'smaltdb extensions', link: '/reference/functions/extensions' },
-              { text: 'Table-valued', link: '/reference/functions/table-valued' },
             ],
           },
           {
