@@ -38,7 +38,7 @@ PRAGMA foreign_keys = ON | OFF
 
 Whether foreign-key constraints are enforced. **Default: 1 (on)**; SQLite's default is off. Turning it off skips all checks and actions until it is turned on again; rows written meanwhile are not checked later. Inside a transaction the setting cannot change: the statement succeeds and does nothing, as in SQLite.
 
-```sql
+```sql play
 PRAGMA foreign_keys
 ```
 

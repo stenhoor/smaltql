@@ -231,7 +231,7 @@ There are no user-defined functions: functions cannot be added from JavaScript.
 
 A sequence of numbers without `generate_series`:
 
-```sql
+```sql play
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 5)
 SELECT group_concat(i) AS numbers FROM n;
 ```

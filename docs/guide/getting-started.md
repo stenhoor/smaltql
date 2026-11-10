@@ -40,7 +40,7 @@ await db.close();
 
 `open()` starts the engine worker and opens (or creates) the database. Every call returns a promise, so the main thread never waits on the database. The same SQL runs in the engine directly:
 
-```sql
+```sql play
 CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT NOT NULL);
 INSERT INTO notes(body) VALUES ('Hello, smaltql');
 SELECT id, body FROM notes;
@@ -50,7 +50,7 @@ SELECT id, body FROM notes;
 |---|---|
 | 1 | Hello, smaltql |
 
-Next: the [quick start](./quick-start) builds a small data layer step by step.
+Next: the [tutorial](./tutorial) builds a small data layer step by step.
 
 ## Loading the engine worker
 
@@ -134,7 +134,7 @@ Storage in Node:
 
 ## Next steps
 
-- [Quick start](./quick-start): a short tutorial.
+- [Tutorial](./tutorial): a small data layer, step by step.
 - [Databases](./databases): storage, options, durability, multi-tab access.
 - [Queries](./queries): parameters, result shapes, streaming, values.
 - [Client API reference](../reference/api/client).

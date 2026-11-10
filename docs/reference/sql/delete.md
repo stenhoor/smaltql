@@ -13,7 +13,7 @@ DELETE FROM [schema.]table [AS alias] [INDEXED BY index | NOT INDEXED]
 
 Every row for which `WHERE` is true is deleted; without `WHERE`, every row. Foreign-key actions (`ON DELETE CASCADE`, `SET NULL`, …) run for each deleted row; see [CREATE TABLE](./create-table#foreign-keys).
 
-```sql
+```sql play
 CREATE TABLE task(id INTEGER PRIMARY KEY, title TEXT, done INTEGER);
 INSERT INTO task VALUES (1, 'write', 1), (2, 'test', 0), (3, 'ship', 1);
 DELETE FROM task WHERE done = 1 RETURNING id, title

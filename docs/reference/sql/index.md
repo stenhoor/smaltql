@@ -8,7 +8,7 @@ This page covers the lexical structure: how the text of a statement is split int
 
 A script is a list of statements separated by `;`. Empty statements (`;;`) are skipped, and the last statement does not need a `;`. Each statement runs on its own: in autocommit mode every statement is its own transaction (see [Transactions](./transactions)).
 
-```sql
+```sql play
 CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT);
 INSERT INTO notes(body) VALUES ('first');;
 SELECT * FROM notes

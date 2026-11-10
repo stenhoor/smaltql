@@ -24,7 +24,7 @@ indexed-column:
 
 The index is filled from the existing rows when it is created. Index names share one namespace with tables and views.
 
-```sql
+```sql play
 CREATE TABLE person(id INTEGER PRIMARY KEY, email TEXT, city TEXT, born TEXT, active INTEGER);
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n LIMIT 1000)
 INSERT INTO person SELECT i, 'user' || i || '@Example.com', 'city' || (i % 50), '19' || (50 + i % 50) || '-01-01', i % 2 FROM n;

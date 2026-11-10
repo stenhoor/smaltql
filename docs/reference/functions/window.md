@@ -102,7 +102,7 @@ ntile(N) OVER (…)
 
 Splits the partition into `N` buckets of nearly equal size and returns the bucket number (1 to `N`) of the current row. When the rows do not divide evenly, the first buckets get one row more. `N` is converted to an integer as in SQLite: a REAL is truncated (`ntile(2.5)` is `ntile(2)`), and text uses its leading digits (`ntile('2')` is `ntile(2)`). If the result is not positive, the query fails with `argument of ntile must be a positive integer`.
 
-```sql
+```sql play
 SELECT player, team, points,
        row_number() OVER w AS row_number,
        rank() OVER w AS rank,

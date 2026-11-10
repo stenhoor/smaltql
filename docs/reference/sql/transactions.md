@@ -21,7 +21,7 @@ Outside an explicit transaction, every statement is its own transaction: it is c
 
 `BEGIN` starts a transaction; changes are visible to the connection right away and become permanent at `COMMIT` (`END` is the same). `ROLLBACK` undoes everything since `BEGIN`. `DEFERRED`, `IMMEDIATE` and `EXCLUSIVE` are accepted for compatibility and behave the same. The optional transaction name is ignored.
 
-```sql
+```sql play
 CREATE TABLE account(id INTEGER PRIMARY KEY, balance INTEGER);
 INSERT INTO account VALUES (1, 100), (2, 50);
 BEGIN;

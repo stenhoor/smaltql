@@ -3,6 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { smaltLight, smaltDark } from './theme/shiki'
 import { smaltworksMenu, smaltworksFooter } from './theme/smaltworks'
+import { playgroundPlugin } from './theme/playground'
+import { agentDocs, packageVersion } from './theme/agents'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const REPO = 'https://github.com/stenhoor/smaltql'
@@ -18,7 +20,22 @@ export default defineConfig({
   srcExclude: ['brand/**'],
   lastUpdated: false,
   // docs/brand holds the logo files; serve them from the site root.
-  vite: { publicDir: path.resolve(here, '../brand') },
+  vite: {
+    publicDir: path.resolve(here, '../brand'),
+    // The playgrounds' engine: smaltdb's build and its worker, bundled into the site (never loaded from a CDN).
+    optimizeDeps: { exclude: ['smaltdb'] },
+    worker: { format: 'es' },
+  },
+  // Markdown for AI agents beside the pages: a twin of each page, /llms.txt and /agents.md (BRAND.md, Documentation).
+  buildEnd: (config) => {
+    agentDocs(config, {
+      product: 'smaltql',
+      version: packageVersion(path.resolve(here, '../../package.json')),
+      url: `https://stenhoor.github.io${base}`,
+      intro: 'guide/agents.md',
+      guide: ['reference/sql/', 'reference/functions/', 'guide/errors', 'guide/sqlite-differences'],
+    })
+  },
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon-32.svg` }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
@@ -42,26 +59,40 @@ export default defineConfig({
         }
         return fallback(tokens, idx, options, env, self)
       }
+      // ```sql play fences are playgrounds (BRAND.md, Documentation, rule 7).
+      md.use(playgroundPlugin)
     },
   },
   themeConfig: {
     logo: { light: '/lockup.svg', dark: '/lockup-on-dark.svg', alt: 'smaltql' },
     siteTitle: false,
+    // The four sections of every smalt site (BRAND.md, Documentation, rule 1).
     nav: [
+      { text: 'Quick start', link: '/guide/quick-start' },
       { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'SQL', link: '/reference/sql/' },
-      { text: 'Functions', link: '/reference/functions/' },
-      { text: 'API', link: '/reference/api/client' },
-      { text: 'FAQ', link: '/guide/faq' },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'SQL', link: '/reference/sql/' },
+          { text: 'Functions', link: '/reference/functions/' },
+          { text: 'API', link: '/reference/api/client' },
+        ],
+      },
+      { text: 'Playground', link: '/playground' },
       smaltworksMenu(),
     ],
     sidebar: [
       {
+        text: 'Quick start',
+        items: [{ text: 'Quick start', link: '/guide/quick-start' }],
+      },
+      {
         text: 'Getting started',
         items: [
           { text: 'Installation', link: '/guide/getting-started' },
-          { text: 'Quick start', link: '/guide/quick-start' },
+          { text: 'Tutorial', link: '/guide/tutorial' },
           { text: 'FAQ', link: '/guide/faq' },
+          { text: 'For AI agents', link: '/guide/agents' },
         ],
       },
       {
@@ -83,54 +114,59 @@ export default defineConfig({
         ],
       },
       {
-        text: 'SQL reference',
-        collapsed: true,
+        text: 'Reference',
         items: [
-          { text: 'Overview', link: '/reference/sql/' },
-          { text: 'SELECT', link: '/reference/sql/select' },
-          { text: 'INSERT', link: '/reference/sql/insert' },
-          { text: 'UPDATE', link: '/reference/sql/update' },
-          { text: 'DELETE', link: '/reference/sql/delete' },
-          { text: 'CREATE TABLE', link: '/reference/sql/create-table' },
-          { text: 'ALTER TABLE', link: '/reference/sql/alter-table' },
-          { text: 'DROP', link: '/reference/sql/drop' },
-          { text: 'CREATE INDEX', link: '/reference/sql/create-index' },
-          { text: 'Views', link: '/reference/sql/views' },
-          { text: 'External tables', link: '/reference/sql/external' },
-          { text: 'Transactions', link: '/reference/sql/transactions' },
-          { text: 'EXPLAIN and ANALYZE', link: '/reference/sql/explain' },
-          { text: 'PRAGMA', link: '/reference/sql/pragmas' },
-          { text: 'Expressions', link: '/reference/sql/expressions' },
-          { text: 'Data types', link: '/reference/sql/types' },
-          { text: 'information_schema', link: '/reference/sql/information-schema' },
-        ],
-      },
-      {
-        text: 'Functions',
-        collapsed: true,
-        items: [
-          { text: 'All functions', link: '/reference/functions/' },
-          { text: 'Scalar', link: '/reference/functions/scalar' },
-          { text: 'String', link: '/reference/functions/string' },
-          { text: 'Math', link: '/reference/functions/math' },
-          { text: 'Date and time', link: '/reference/functions/datetime' },
-          { text: 'Dates, times and zones', link: '/reference/functions/dates' },
-          { text: 'Lists', link: '/reference/functions/list' },
-          { text: 'Regular expressions', link: '/reference/functions/regex' },
-          { text: 'Aggregate', link: '/reference/functions/aggregate' },
-          { text: 'Window', link: '/reference/functions/window' },
-          { text: 'smaltdb extensions', link: '/reference/functions/extensions' },
-          { text: 'Table-valued', link: '/reference/functions/table-valued' },
-        ],
-      },
-      {
-        text: 'API reference',
-        collapsed: true,
-        items: [
-          { text: 'Client (open, Database)', link: '/reference/api/client' },
-          { text: 'Engine (smaltdb.dev)', link: `${ENGINE}/reference/api/engine` },
-          { text: 'Writing plugins (smaltdb.dev)', link: `${ENGINE}/reference/api/plugins` },
-          { text: 'Error codes (smaltdb.dev)', link: `${ENGINE}/reference/api/errors` },
+          {
+            text: 'SQL',
+            collapsed: true,
+            items: [
+              { text: 'Overview', link: '/reference/sql/' },
+              { text: 'SELECT', link: '/reference/sql/select' },
+              { text: 'INSERT', link: '/reference/sql/insert' },
+              { text: 'UPDATE', link: '/reference/sql/update' },
+              { text: 'DELETE', link: '/reference/sql/delete' },
+              { text: 'CREATE TABLE', link: '/reference/sql/create-table' },
+              { text: 'ALTER TABLE', link: '/reference/sql/alter-table' },
+              { text: 'DROP', link: '/reference/sql/drop' },
+              { text: 'CREATE INDEX', link: '/reference/sql/create-index' },
+              { text: 'Views', link: '/reference/sql/views' },
+              { text: 'External tables', link: '/reference/sql/external' },
+              { text: 'Transactions', link: '/reference/sql/transactions' },
+              { text: 'EXPLAIN and ANALYZE', link: '/reference/sql/explain' },
+              { text: 'PRAGMA', link: '/reference/sql/pragmas' },
+              { text: 'Expressions', link: '/reference/sql/expressions' },
+              { text: 'Data types', link: '/reference/sql/types' },
+              { text: 'information_schema', link: '/reference/sql/information-schema' },
+            ],
+          },
+          {
+            text: 'Functions',
+            collapsed: true,
+            items: [
+              { text: 'All functions', link: '/reference/functions/' },
+              { text: 'Scalar', link: '/reference/functions/scalar' },
+              { text: 'String', link: '/reference/functions/string' },
+              { text: 'Math', link: '/reference/functions/math' },
+              { text: 'Date and time', link: '/reference/functions/datetime' },
+              { text: 'Dates, times and zones', link: '/reference/functions/dates' },
+              { text: 'Lists', link: '/reference/functions/list' },
+              { text: 'Regular expressions', link: '/reference/functions/regex' },
+              { text: 'Aggregate', link: '/reference/functions/aggregate' },
+              { text: 'Window', link: '/reference/functions/window' },
+              { text: 'smaltdb extensions', link: '/reference/functions/extensions' },
+              { text: 'Table-valued', link: '/reference/functions/table-valued' },
+            ],
+          },
+          {
+            text: 'API',
+            collapsed: true,
+            items: [
+              { text: 'Client (open, Database)', link: '/reference/api/client' },
+              { text: 'Engine (smaltdb.dev)', link: `${ENGINE}/reference/api/engine` },
+              { text: 'Writing plugins (smaltdb.dev)', link: `${ENGINE}/reference/api/plugins` },
+              { text: 'Error codes (smaltdb.dev)', link: `${ENGINE}/reference/api/errors` },
+            ],
+          },
         ],
       },
     ],
