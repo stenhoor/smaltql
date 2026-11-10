@@ -1158,10 +1158,63 @@ class FrontEnd {
     return op;
   }
 
+  /**
+   * `item PIVOT (agg(…), … FOR column IN (values))` (SQL standard; smaltdb ADR 0022): the engine's pivot of the item.
+   * Rows group by the columns neither the aggregates nor FOR read; one column per value (and aggregate), named by the
+   * value or its alias, and `value_alias` with several aggregates (as DuckDB).
+   */
+  private pivotSource(item: Extract<FromItem, { kind: 'table' | 'subquery' }>, scope: FeScope, position: number): PlanOp {
+    const pv = item.pivot!;
+    const inner = new FeScope(scope);
+    const input = this.addSource({ ...item, pivot: undefined } as FromItem, inner);
+    const src = inner.sources[0]!;
+    const index = (name: string): number => {
+      const i = src.cols.findIndex((c) => sameName(c.name, name));
+      if (i < 0) throw new SmaltError('SMALT_ERROR', `no such column: ${name}`);
+      return i;
+    };
+    const colExpr = (i: number): PlanExpr => ({ k: 'col', input: 0, index: i, depth: 0, type: src.cols[i]!.type, collation: collationName(src.cols[i]!.collation) });
+    const on = index(pv.column);
+    const used = new Set<number>([on]);
+    const names = (e: unknown): void => {
+      if (e === null || typeof e !== 'object') return;
+      const o = e as Record<string, unknown>;
+      if (o.kind === 'column' && typeof o.name === 'string') {
+        const i = src.cols.findIndex((c) => sameName(c.name, o.name as string));
+        if (i >= 0) used.add(i);
+      }
+      for (const k in o) names(o[k]);
+    };
+    pv.aggs.forEach((a) => names(a.call.args));
+    const keyIdx = src.cols.map((_, i) => i).filter((i) => !used.has(i));
+    const cs = this.compileScope(inner);
+    const aggs = pv.aggs.map(({ call }) => {
+      if (!aggregateFunction(call.name) || call.over) throw new SmaltError('SMALT_ERROR', `PIVOT takes aggregate calls, not ${call.name}()`);
+      const args = call.args.map((a) => bindAst(a, cs));
+      const type = resultType(call.name, args.map((a) => ({ type: typeOf(a) })));
+      return { fn: call.name, args, star: call.star, distinct: call.distinct, collation: 'binary', type } as AggCall;
+    });
+    const values = pv.values.map((v) => {
+      const e = v.value;
+      if (e.kind !== 'literal') throw new SmaltError('SMALT_ERROR', 'PIVOT … IN takes constants');
+      return e.value as SqlValue;
+    });
+    const col = (name: string, t: StaticType): FeColumn => ({ name, type: t, collation: Collation.Binary, affinity: 'NONE', declType: '' });
+    const cols: FeColumn[] = keyIdx.map((i) => src.cols[i]!);
+    pv.values.forEach((v, vi) => {
+      const label = v.alias ?? String(values[vi]);
+      pv.aggs.forEach((a, ai) => cols.push(col(pv.aggs.length > 1 ? `${label}_${a.alias ?? a.call.name}` : label, (aggs[ai] as { type: StaticType }).type)));
+    });
+    const op = { op: 'pivot', input, keys: keyIdx.map((i) => ({ expr: colExpr(i), collation: collationName(src.cols[i]!.collation) })), on: colExpr(on), collation: collationName(src.cols[on]!.collation), values, aggs } as PlanOp;
+    this.push(scope, { name: item.alias ?? (item.kind === 'table' ? item.name : 'pivot'), cols, offset: 0, rowid: null, position, width: cols.length, hidden: NO_HIDDEN });
+    return op;
+  }
+
   /** Add a FROM item's columns to the scope; returns the plan that produces its rows. */
   private addSource(item: FromItem, scope: FeScope): PlanOp {
     const position = scope.sources.length;
     if ((item.kind === 'table' || item.kind === 'subquery') && item.unpivot) return this.unpivotSource(item, scope, position);
+    if ((item.kind === 'table' || item.kind === 'subquery') && item.pivot) return this.pivotSource(item, scope, position);
     if (item.kind === 'join') throw new SmaltError('SMALT_ERROR', 'unexpected join');
     // External data: external tables and read_csv()-style functions (their columns come from the data).
     if (item.kind === 'function' && this.catalog.isExternalFunction?.(item.name)) return this.externalFunction(item, scope, position);
@@ -1481,6 +1534,10 @@ class FrontEnd {
       case 'explode':
       case 'unpivot':
         this.resolveRefs(o.input);
+        break;
+      case 'pivot':
+        this.resolveRefs(o.input);
+        for (const c of o.aggs as Mutable<AggCall>[]) list(c.args);
         break;
       case 'setop':
         this.resolveRefs(o.inputs[0]);

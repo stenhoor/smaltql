@@ -313,7 +313,7 @@ class Parser {
   private optAlias(): string | undefined {
     if (this.acceptKw('AS')) return this.nameOrString();
     if (this.isAsof(this.p)) return undefined;
-    if (this.isUnpivot(this.p)) return undefined;
+    if (this.isUnpivot(this.p) || this.isPivot(this.p)) return undefined;
     const k = this.kinds[this.p];
     if (k === TK_ID || k === TK_QID || k === TK_STRING) return this.vals[this.p++] as string;
     if (k === TK_NKW && !NO_IMPLICIT_ALIAS.has(this.kws[this.p])) return this.vals[this.p++] as string;
@@ -633,6 +633,33 @@ class Parser {
 
   private tableOrSubquery(): A.FromItem {
     const item = this.tableOrSubqueryBase();
+    if (this.isPivot(this.p)) {
+      if (item.kind !== 'table' && item.kind !== 'subquery') this.error('PIVOT applies to a table or a subquery');
+      // `PIVOT (agg(…) [AS a], … FOR column IN (value [AS name], …))` (SQL standard; smaltdb ADR 0022).
+      this.p += 2;
+      const aggs: { call: A.CallExpr; alias?: string }[] = [];
+      do {
+        const call = this.expr();
+        if (call.kind !== 'call') this.error('PIVOT takes aggregate calls');
+        const alias = this.acceptKw('AS') ? this.name() : undefined;
+        aggs.push(alias !== undefined ? { call: call as A.CallExpr, alias } : { call: call as A.CallExpr });
+      } while (this.acceptOp(','));
+      this.expectKw('FOR');
+      const column = this.name();
+      this.expectKw('IN');
+      this.expectOp('(');
+      const values: { value: A.Expr; alias?: string }[] = [];
+      do {
+        const value = this.expr();
+        const alias = this.acceptKw('AS') ? this.nameOrString() : undefined;
+        values.push(alias !== undefined ? { value, alias } : { value });
+      } while (this.acceptOp(','));
+      this.expectOp(')');
+      this.expectOp(')');
+      const alias = this.optAlias();
+      const t = item as A.TableRef | A.SubqueryRef;
+      return { ...t, alias: alias ?? t.alias, pivot: { aggs, column, values }, end: this.ends[this.p - 1] };
+    }
     if (!this.isUnpivot(this.p)) return item;
     if (item.kind !== 'table' && item.kind !== 'subquery') this.error('UNPIVOT applies to a table or a subquery');
     // `UNPIVOT [INCLUDE | EXCLUDE NULLS] (value FOR name IN (col [AS 'label'], …))` (SQL standard; smaltdb ADR 0022).
@@ -660,6 +687,11 @@ class Parser {
     const alias = this.optAlias();
     const t = item as A.TableRef | A.SubqueryRef;
     return { ...t, alias: alias ?? t.alias, unpivot: { value, name, columns, includeNulls }, end: this.ends[this.p - 1] };
+  }
+
+  /** `PIVOT (` starts at token `i`. */
+  private isPivot(i: number): boolean {
+    return this.kinds[i] === TK_ID && String(this.vals[i]).toUpperCase() === 'PIVOT' && this.isOpAt(i + 1, '(');
   }
 
   /** `UNPIVOT (` or `UNPIVOT INCLUDE NULLS (` starts at token `i`. */

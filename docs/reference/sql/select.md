@@ -464,3 +464,18 @@ SELECT shop, month, amt FROM sales UNPIVOT (amt FOR month IN (jan, feb));
 | a | jan | 10 |
 | a | feb | 20 |
 | b | feb | 5 |
+
+## PIVOT {#pivot}
+
+`t PIVOT (agg(x) [AS alias], … FOR column IN (value [AS name], …))` after a table or subquery in `FROM` turns values into columns (a smaltdb extension, as in the SQL standard and DuckDB). The rows group by the columns that neither the aggregates nor `FOR` read. Each value gives one column holding the aggregate over the group's rows with that value; a cell with no rows is NULL (0 for `count`). The columns are named by the value or its name, and `value_alias` with several aggregates. The values are constants: a pivot can't read them from the data.
+
+```sql
+CREATE TABLE s(shop TEXT, month TEXT, amt INTEGER);
+INSERT INTO s VALUES ('a', 'jan', 10), ('a', 'feb', 20), ('a', 'jan', 5), ('b', 'feb', 7);
+SELECT * FROM s PIVOT (sum(amt) FOR month IN ('jan', 'feb')) ORDER BY shop;
+```
+
+| shop | jan | feb |
+| --- | --- | --- |
+| a | 15 | 20 |
+| b | NULL | 7 |

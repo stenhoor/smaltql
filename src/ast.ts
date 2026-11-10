@@ -272,6 +272,7 @@ export interface TableRef extends Node {
   /** `TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]`. */
   sample?: TableSample;
   unpivot?: Unpivot;
+  pivot?: Pivot;
 }
 
 export interface TableSample {
@@ -284,6 +285,14 @@ export interface SubqueryRef extends Node {
   select: SelectStmt;
   alias?: string;
   unpivot?: Unpivot;
+  pivot?: Pivot;
+}
+
+/** `PIVOT (agg(…) [AS a], … FOR column IN (value [AS name], …))` after a FROM item. */
+export interface Pivot {
+  aggs: { call: CallExpr; alias?: string }[];
+  column: string;
+  values: { value: Expr; alias?: string }[];
 }
 
 /** `UNPIVOT [INCLUDE NULLS] (value FOR name IN (col [AS 'label'], …))` after a FROM item. */
