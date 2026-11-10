@@ -381,3 +381,17 @@ SELECT group_concat(i) AS seq FROM n
 - Row values (`(a, b) = (1, 2)`) are a syntax error.
 - A double-quoted name that matches no column is an error, never a string.
 - An integral REAL computed in an expression can come back as an INTEGER in some cases; see [Data types](./types#real).
+
+## TABLESAMPLE {#tablesample}
+
+`FROM t TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]` reads that percent of the table's rows, drawn at random, in their order (a smaltdb extension, as in Postgres; `SYSTEM` is the same). `REPEATABLE` takes an integer: the same seed draws the same rows. It follows the table's alias, and applies to that table before joins and `WHERE`.
+
+```sql
+CREATE TABLE n(i INTEGER);
+WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < 100) INSERT INTO n SELECT i FROM c;
+SELECT count(*) AS rows FROM n TABLESAMPLE BERNOULLI (10) REPEATABLE (1);
+```
+
+| rows |
+| --- |
+| 10 |
