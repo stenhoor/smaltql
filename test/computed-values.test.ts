@@ -15,12 +15,12 @@ describe('computed values as SQL holds them', () => {
     ['length(list_of(1,2))', 5],
     ['list_of(1,2)', '[1,2]'],
     ["regex_match('abc','b')", 1],
-    ['list_contains(list_of(1,2),3)', 0],
+    ['array_contains(list_of(1,2),3)', 0],
   ])('%s', (expr, want) => expect(one(`SELECT ${expr}`)).toBe(want));
 
   it('engine functions still take the values under the text', () => {
     expect(one('SELECT year(make_date(2026,11,7))')).toBe(2026);
-    expect(one('SELECT list_len(list_of(1,2,3))')).toBe(3);
+    expect(one('SELECT cardinality(list_of(1,2,3))')).toBe(3);
     expect(one("SELECT trunc_temporal(parse_datetime('2026-11-07 10:31:00'),'hour')")).toBe('2026-11-07 10:00:00');
   });
 

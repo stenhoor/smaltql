@@ -16,8 +16,8 @@ const SQL_FUNCTIONS = new Set([
   'covar_samp', 'date', 'datetime', 'day', 'day_of_year', 'degrees', 'exp', 'first', 'floor', 'format',
   'format_temporal', 'from_zone', 'group_concat', 'hex', 'hour', 'if', 'ifnull', 'iif', 'implode', 'instr',
   'julianday', 'kurtosis', 'kurtosis_pop', 'last', 'last_insert_rowid', 'length', 'likelihood', 'likely',
-  'list_concat', 'list_contains', 'list_get', 'list_join', 'list_len', 'list_max', 'list_mean', 'list_min', 'list_of',
-  'list_reverse', 'list_slice', 'list_sort', 'list_sum', 'list_unique', 'ln', 'log', 'log10', 'log2', 'lower',
+  'list_max', 'list_mean', 'list_min', 'list_of',
+  'list_sum', 'ln', 'log', 'log10', 'log2', 'lower',
   'lower_unicode', 'ltrim', 'make_date', 'make_datetime', 'max', 'median', 'microsecond', 'min', 'minute', 'mod',
   'month', 'nullif', 'octet_length', 'offset_by', 'parse_date', 'parse_datetime', 'percentile', 'percentile_cont',
   'percentile_disc', 'pi', 'pow', 'power', 'printf', 'quote', 'radians', 'random', 'randomblob', 'regex_find',
@@ -29,7 +29,18 @@ const SQL_FUNCTIONS = new Set([
 ]);
 
 /** SQL's names for engine functions it spells differently. */
-const SQL_SPELLINGS: Readonly<Record<string, string>> = { round_even: 'round_half_even' };
+const SQL_SPELLINGS: Readonly<Record<string, string>> = {
+  round_even: 'round_half_even',
+  // Lists (smaltdb ADR 0022, step 5): Postgres's and DuckDB's names.
+  cardinality: 'list_len',
+  array_length: 'list_len',
+  array_contains: 'list_contains',
+  array_cat: 'list_concat',
+  array_to_string: 'list_join',
+  array_sort: 'list_sort',
+  array_distinct: 'list_unique',
+  array_reverse: 'list_reverse',
+};
 
 /** The engine function a SQL function name calls, or undefined if SQL has no such function. */
 export const engineName = (name: string): string | undefined => SQL_SPELLINGS[name] ?? (SQL_FUNCTIONS.has(name) ? name : undefined);

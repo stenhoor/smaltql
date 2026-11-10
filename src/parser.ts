@@ -1712,6 +1712,16 @@ class Parser {
   private nameExpr(): A.Expr {
     const pos = this.pos();
     const first = this.vals[this.p++] as string;
+    if (first.toUpperCase() === 'ARRAY' && this.acceptOp('[')) {
+      // `ARRAY[a, b, …]` (Postgres; smaltdb ADR 0022): the engine's list_of.
+      const args: A.Expr[] = [];
+      if (!this.isOp(']')) {
+        do args.push(this.expr());
+        while (this.acceptOp(','));
+      }
+      this.expectOp(']');
+      return { kind: 'call', pos, name: 'list_of', args, star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
+    }
     if (this.acceptOp('(')) return this.call(first.toLowerCase(), pos);
     if (!this.acceptOp('.')) return { kind: 'column', pos, schema: undefined, table: undefined, name: first, end: this.ends[this.p - 1] };
     const second = this.name();
@@ -1762,7 +1772,7 @@ class Parser {
     }
     if (ignoreNulls !== undefined && over === undefined) throw new SmaltError('SMALT_ERROR', `${ignoreNulls ? 'IGNORE' : 'RESPECT'} NULLS is only valid with window functions`);
     // DuckDB's names for the engine's first / last with a key (smaltdb ADR 0022).
-    const fn = name === 'arg_min' ? 'first' : name === 'arg_max' ? 'last' : name;
+    const fn = name === 'arg_min' ? 'first' : name === 'arg_max' ? 'last' : name === 'array_agg' ? 'implode' : name;
     return { kind: 'call', pos, name: fn, args, star, distinct, filter, over, orderBy, ...(ignoreNulls ? { ignoreNulls } : {}), end: this.ends[this.p - 1] };
   }
 
