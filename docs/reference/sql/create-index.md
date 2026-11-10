@@ -4,13 +4,8 @@
 
 ## Syntax
 
-```text
-CREATE [UNIQUE] INDEX [IF NOT EXISTS] [schema.]name
-  ON table (indexed-column [, ...])
-  [WHERE condition]
-
-indexed-column:
-  {column | expr} [COLLATE collation] [ASC | DESC]
+```railroad
+create-index-stmt
 ```
 
 | Part | Meaning |

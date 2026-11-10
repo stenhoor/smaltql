@@ -4,10 +4,9 @@
 
 ## Syntax
 
-```text
-EXPLAIN [QUERY PLAN] select
-EXPLAIN ANALYZE select
-ANALYZE [schema | [schema.]table-or-index]
+```railroad
+explain-stmt
+analyze-stmt
 ```
 
 The examples use this table:

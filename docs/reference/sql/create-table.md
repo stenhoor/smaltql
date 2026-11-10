@@ -4,48 +4,12 @@
 
 ## Syntax
 
-```text
-CREATE [TEMP | TEMPORARY] TABLE [IF NOT EXISTS] [schema.]name (
-  column-def [, column-def ...]
-  [, table-constraint ...]
-) [table-option [, table-option ...]]
-
-column-def:
-  name [type-name] [column-constraint ...]
-
-type-name:
-  word [word ...] [(number [, number])]
-
-column-constraint:
-  [CONSTRAINT name]
-  { PRIMARY KEY [ASC | DESC] [conflict-clause] [AUTOINCREMENT]
-  | NOT NULL [conflict-clause]
-  | NULL
-  | UNIQUE [conflict-clause]
-  | CHECK (expr)
-  | DEFAULT {literal | signed-number | (expr) | CURRENT_DATE | CURRENT_TIME | CURRENT_TIMESTAMP | identifier}
-  | COLLATE collation
-  | REFERENCES foreign-table [(column [, ...])] [fk-action ...] [deferrable] }
-
-table-constraint:
-  [CONSTRAINT name]
-  { PRIMARY KEY (column [COLLATE c] [ASC | DESC] [, ...] [AUTOINCREMENT]) [conflict-clause]
-  | UNIQUE (column [COLLATE c] [ASC | DESC] [, ...]) [conflict-clause]
-  | CHECK (expr) [conflict-clause]
-  | FOREIGN KEY (column [, ...]) REFERENCES foreign-table [(column [, ...])] [fk-action ...] [deferrable] }
-
-fk-action:
-  ON {DELETE | UPDATE} {SET NULL | SET DEFAULT | CASCADE | RESTRICT | NO ACTION}
-  | MATCH name
-
-deferrable:
-  [NOT] DEFERRABLE [INITIALLY {DEFERRED | IMMEDIATE}]
-
-conflict-clause:
-  ON CONFLICT {ROLLBACK | ABORT | FAIL | IGNORE | REPLACE}
-
-table-option:
-  STRICT | WITH (storage = 'row' | 'columnar') | LOOSE | WITHOUT ROWID
+```railroad
+create-table-stmt
+column-def
+column-constraint
+table-constraint
+foreign-key-clause
 ```
 
 ```sql

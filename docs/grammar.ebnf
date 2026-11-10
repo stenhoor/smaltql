@@ -1,0 +1,234 @@
+/* smaltql's SQL, in W3C EBNF. The syntax diagrams on the reference pages are drawn from this file, and the agent guide
+   (/agents.md) prints it. It is written from the parser (src/parser.ts) and lists what smaltql runs: forms the parser
+   reads only to reject them (triggers, CREATE TABLE ... AS, WITHOUT ROWID, LOOSE, generated columns, UPDATE and DELETE
+   with ORDER BY or LIMIT, INCLUDE columns, MATCH, ->, VACUUM) are left out, and listed in Differences from SQLite.
+   Keywords are written in upper case and match in any case. name, string-literal, numeric-literal, blob-literal and
+   parameter are tokens: see the SQL reference's overview. */
+
+sql-script ::= sql-stmt? (';' sql-stmt?)*
+
+sql-stmt ::= select-stmt | insert-stmt | update-stmt | delete-stmt
+           | create-table-stmt | alter-table-stmt | create-index-stmt | create-view-stmt
+           | create-materialized-view-stmt | refresh-stmt | create-external-table-stmt | create-connection-stmt
+           | drop-stmt | begin-stmt | commit-stmt | rollback-stmt | savepoint-stmt | release-stmt
+           | explain-stmt | analyze-stmt | pragma-stmt
+
+/* Queries */
+
+select-stmt ::= with-clause? select-core (compound-operator select-core)*
+                ('ORDER' 'BY' ordering-term (',' ordering-term)*)? limit-clause?
+
+with-clause ::= 'WITH' 'RECURSIVE'? common-table-expression (',' common-table-expression)*
+
+common-table-expression ::= name ('(' name (',' name)* ')')? 'AS' ('NOT'? 'MATERIALIZED')? '(' select-stmt ')'
+
+select-core ::= 'SELECT' ('DISTINCT' ('ON' '(' expr (',' expr)* ')')? | 'ALL')? result-column (',' result-column)*
+                ('FROM' from-clause)? ('WHERE' expr)? ('GROUP' 'BY' expr (',' expr)*)? ('HAVING' expr)?
+                ('WINDOW' window-definition (',' window-definition)*)?
+              | 'VALUES' values-row (',' values-row)*
+
+values-row ::= '(' expr (',' expr)* ')'
+
+window-definition ::= name 'AS' window-spec
+
+compound-operator ::= 'UNION' 'ALL'? | 'INTERSECT' | 'EXCEPT'
+
+result-column ::= expr ('AS'? column-alias)? | '*' | name '.' '*'
+
+column-alias ::= name | string-literal
+
+ordering-term ::= expr ('ASC' | 'DESC')? ('NULLS' ('FIRST' | 'LAST'))?
+
+limit-clause ::= 'LIMIT' expr (('OFFSET' | ',') expr)?
+
+from-clause ::= from-item join-clause*
+
+join-clause ::= join-operator from-item join-constraint?
+
+join-operator ::= ',' | 'NATURAL'? ('LEFT' 'OUTER'? | 'RIGHT' 'OUTER'? | 'FULL' 'OUTER'? | 'INNER' | 'CROSS')? 'JOIN'
+                | 'ASOF' 'LEFT'? 'JOIN'
+
+join-constraint ::= 'ON' expr | 'USING' '(' name (',' name)* ')'
+
+from-item ::= table-ref | table-function | subquery-ref | '(' from-clause ')'
+
+table-ref ::= qualified-name ('AS'? name)? ('INDEXED' 'BY' name | 'NOT' 'INDEXED')? table-sample? pivot-clause?
+
+qualified-name ::= (name '.')? name
+
+table-sample ::= 'TABLESAMPLE' ('BERNOULLI' | 'SYSTEM') '(' expr ')' ('REPEATABLE' '(' expr ')')?
+
+table-function ::= qualified-name '(' function-arguments? ')' ('WITH' 'ORDINALITY')?
+                   ('AS'? name ('(' name (',' name)* ')')?)?
+
+function-arguments ::= expr (',' expr)* (',' name '=>' expr)* | name '=>' expr (',' name '=>' expr)*
+
+subquery-ref ::= '(' select-stmt ')' ('AS'? name)? pivot-clause?
+
+pivot-clause ::= 'PIVOT' '(' function-call ('AS' name)? (',' function-call ('AS' name)?)*
+                 'FOR' name 'IN' '(' expr ('AS' column-alias)? (',' expr ('AS' column-alias)?)* ')' ')' ('AS'? name)?
+               | 'UNPIVOT' (('INCLUDE' | 'EXCLUDE') 'NULLS')?
+                 '(' name 'FOR' name 'IN' '(' name ('AS' column-alias)? (',' name ('AS' column-alias)?)* ')' ')' ('AS'? name)?
+
+window-spec ::= '(' name? ('PARTITION' 'BY' expr (',' expr)*)? ('ORDER' 'BY' ordering-term (',' ordering-term)*)?
+                frame-spec? ')'
+
+frame-spec ::= ('ROWS' | 'RANGE' | 'GROUPS') (frame-bound | 'BETWEEN' frame-bound 'AND' frame-bound)
+               ('EXCLUDE' ('NO' 'OTHERS' | 'CURRENT' 'ROW' | 'GROUP' | 'TIES'))?
+
+frame-bound ::= 'UNBOUNDED' ('PRECEDING' | 'FOLLOWING') | 'CURRENT' 'ROW' | expr ('PRECEDING' | 'FOLLOWING')
+
+/* Changing data */
+
+insert-stmt ::= with-clause? ('INSERT' ('OR' conflict-action)? | 'REPLACE') 'INTO' qualified-name ('AS' name)?
+                ('(' name (',' name)* ')')? (select-stmt upsert-clause* | 'DEFAULT' 'VALUES') returning-clause?
+
+conflict-action ::= 'ROLLBACK' | 'ABORT' | 'FAIL' | 'IGNORE' | 'REPLACE'
+
+upsert-clause ::= 'ON' 'CONFLICT' ('(' indexed-column (',' indexed-column)* ')')?
+                  'DO' ('NOTHING' | 'UPDATE' 'SET' set-clause (',' set-clause)* ('WHERE' expr)?)
+
+set-clause ::= name '=' expr
+
+returning-clause ::= 'RETURNING' result-column (',' result-column)*
+
+update-stmt ::= with-clause? 'UPDATE' ('OR' conflict-action)? qualified-name ('AS' name)? ('INDEXED' 'BY' name | 'NOT' 'INDEXED')?
+                'SET' set-clause (',' set-clause)* ('FROM' from-clause)? ('WHERE' expr)? returning-clause?
+
+delete-stmt ::= with-clause? 'DELETE' 'FROM' qualified-name ('AS' name)? ('INDEXED' 'BY' name | 'NOT' 'INDEXED')?
+                ('WHERE' expr)? returning-clause?
+
+/* Schema */
+
+create-table-stmt ::= 'CREATE' ('TEMP' | 'TEMPORARY')? 'TABLE' ('IF' 'NOT' 'EXISTS')? qualified-name
+                      '(' column-def (',' column-def)* (',' table-constraint)* ')' table-options?
+
+column-def ::= name type-name? column-constraint*
+
+type-name ::= name+ ('(' signed-number (',' signed-number)? ')')?
+
+signed-number ::= ('+' | '-')? numeric-literal
+
+column-constraint ::= ('CONSTRAINT' name)?
+                      ( 'PRIMARY' 'KEY' ('ASC' | 'DESC')? conflict-clause? 'AUTOINCREMENT'?
+                      | 'NOT' 'NULL' conflict-clause?
+                      | 'NULL'
+                      | 'UNIQUE' conflict-clause?
+                      | 'CHECK' '(' expr ')'
+                      | 'DEFAULT' default-value
+                      | 'COLLATE' collation-name
+                      | 'REFERENCES' foreign-key-clause )
+
+default-value ::= signed-number | string-literal | blob-literal | 'NULL' | 'TRUE' | 'FALSE'
+                | 'CURRENT_DATE' | 'CURRENT_TIME' | 'CURRENT_TIMESTAMP' | name | '(' expr ')'
+
+conflict-clause ::= 'ON' 'CONFLICT' conflict-action
+
+table-constraint ::= ('CONSTRAINT' name)?
+                     ( 'PRIMARY' 'KEY' '(' indexed-column (',' indexed-column)* 'AUTOINCREMENT'? ')' conflict-clause?
+                     | 'UNIQUE' '(' indexed-column (',' indexed-column)* ')' conflict-clause?
+                     | 'CHECK' '(' expr ')'
+                     | 'FOREIGN' 'KEY' '(' name (',' name)* ')' 'REFERENCES' foreign-key-clause )
+
+foreign-key-clause ::= name ('(' name (',' name)* ')')?
+                       ('ON' ('DELETE' | 'UPDATE') foreign-key-action | 'MATCH' name)*
+                       ('NOT'? 'DEFERRABLE' ('INITIALLY' ('DEFERRED' | 'IMMEDIATE'))?)?
+
+foreign-key-action ::= 'SET' 'NULL' | 'SET' 'DEFAULT' | 'CASCADE' | 'RESTRICT' | 'NO' 'ACTION'
+
+table-options ::= table-option (',' table-option)*
+
+table-option ::= 'STRICT' | 'WITH' with-options
+
+with-options ::= '(' name '=' option-value (',' name '=' option-value)* ')'
+
+option-value ::= signed-number | string-literal | blob-literal | 'NULL' | 'TRUE' | 'FALSE' | 'ON' | name
+
+indexed-column ::= expr ('COLLATE' collation-name)? ('ASC' | 'DESC')?
+
+collation-name ::= name | string-literal
+
+alter-table-stmt ::= 'ALTER' 'TABLE' qualified-name
+                     ( 'RENAME' 'TO' name
+                     | 'RENAME' 'COLUMN'? name 'TO' name
+                     | 'ADD' 'COLUMN'? column-def
+                     | 'DROP' 'COLUMN'? name )
+
+create-index-stmt ::= 'CREATE' 'UNIQUE'? 'INDEX' ('IF' 'NOT' 'EXISTS')? qualified-name
+                      'ON' name '(' indexed-column (',' indexed-column)* ')' ('WHERE' expr)?
+
+create-view-stmt ::= 'CREATE' ('TEMP' | 'TEMPORARY')? 'VIEW' ('IF' 'NOT' 'EXISTS')? qualified-name
+                     ('(' name (',' name)* ')')? 'AS' select-stmt
+
+create-materialized-view-stmt ::= 'CREATE' 'MATERIALIZED' 'VIEW' ('IF' 'NOT' 'EXISTS')? ('MAIN' '.')? name
+                                  ('(' name (',' name)* ')')? ('WITH' with-options)? 'AS' select-stmt
+                                  ('WITH' 'NO'? 'DATA')?
+
+refresh-stmt ::= 'REFRESH' 'MATERIALIZED' 'VIEW' 'CONCURRENTLY'? ('MAIN' '.')? name 'CONCURRENTLY'?
+                 ('IF' 'CHANGED')? ('WITH' 'NO'? 'DATA')?
+
+create-external-table-stmt ::= 'CREATE' 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')? ('MAIN' '.')? name
+                               ('(' name type-name? (',' name type-name?)* ')')? 'WITH' with-options
+
+create-connection-stmt ::= 'CREATE' 'CONNECTION' ('IF' 'NOT' 'EXISTS')? name 'WITH' with-options
+
+drop-stmt ::= 'DROP' ('TABLE' | 'INDEX' | 'VIEW' | 'MATERIALIZED' 'VIEW' | 'EXTERNAL' 'TABLE' | 'CONNECTION')
+              ('IF' 'EXISTS')? qualified-name
+
+/* Transactions */
+
+begin-stmt ::= 'BEGIN' ('DEFERRED' | 'IMMEDIATE' | 'EXCLUSIVE')? ('TRANSACTION' name?)?
+
+commit-stmt ::= ('COMMIT' | 'END') ('TRANSACTION' name?)?
+
+rollback-stmt ::= 'ROLLBACK' ('TRANSACTION' name?)? ('TO' 'SAVEPOINT'? name)?
+
+savepoint-stmt ::= 'SAVEPOINT' name
+
+release-stmt ::= 'RELEASE' 'SAVEPOINT'? name
+
+/* Plans, statistics and settings */
+
+explain-stmt ::= 'EXPLAIN' ('QUERY' 'PLAN' | 'ANALYZE')? select-stmt
+
+analyze-stmt ::= 'ANALYZE' qualified-name?
+
+pragma-stmt ::= 'PRAGMA' qualified-name ('=' option-value | '(' option-value ')')?
+
+/* Expressions */
+
+expr ::= literal-value
+       | parameter
+       | qualified-name ('.' name)?
+       | unary-operator expr
+       | expr binary-operator expr
+       | function-call
+       | '(' expr ')' ('.' name)*
+       | 'CAST' '(' expr 'AS' type-name ')'
+       | expr 'COLLATE' collation-name
+       | expr 'NOT'? ('LIKE' | 'GLOB') expr ('ESCAPE' expr)?
+       | expr 'NOT'? 'REGEXP' expr
+       | expr ('ISNULL' | 'NOTNULL' | 'NOT' 'NULL')
+       | expr 'IS' 'NOT'? ('DISTINCT' 'FROM')? expr
+       | expr 'NOT'? 'BETWEEN' expr 'AND' expr
+       | expr 'NOT'? 'IN' ('(' (select-stmt | expr (',' expr)*)? ')' | qualified-name ('(' (expr (',' expr)*)? ')')?)
+       | '(' select-stmt ')'
+       | 'NOT'? 'EXISTS' '(' select-stmt ')'
+       | 'CASE' expr? ('WHEN' expr 'THEN' expr)+ ('ELSE' expr)? 'END'
+       | 'ARRAY' '[' (expr (',' expr)*)? ']'   /* no space before '[': with one, [ starts a quoted name */
+       | expr '=' 'ANY' '(' expr ')'
+       | ('DATE' | 'TIME' | 'TIMESTAMP' | 'INTERVAL') string-literal
+
+literal-value ::= numeric-literal | string-literal | blob-literal | 'NULL' | 'TRUE' | 'FALSE'
+                | 'CURRENT_DATE' | 'CURRENT_TIME' | 'CURRENT_TIMESTAMP'
+
+unary-operator ::= '-' | '+' | '~' | 'NOT'
+
+binary-operator ::= '||' | '*' | '/' | '%' | '+' | '-' | '&' | '|' | '<<' | '>>'
+                  | '<' | '<=' | '>' | '>=' | '=' | '==' | '!=' | '<>' | 'AND' | 'OR'
+
+function-call ::= name '(' ('DISTINCT'? expr (',' expr)* | '*')? ')' ('FILTER' '(' 'WHERE' expr ')')?
+                  (('IGNORE' 'NULLS')? 'OVER' (window-spec | name))?
+                | 'EXTRACT' '(' date-field 'FROM' expr ')'
+
+date-field ::= 'YEAR' | 'MONTH' | 'DAY' | 'HOUR' | 'MINUTE' | 'SECOND' | 'MICROSECOND' | 'MICROSECONDS' | 'ISODOW' | 'DOY'

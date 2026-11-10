@@ -4,13 +4,8 @@
 
 ## Syntax
 
-```text
-DROP TABLE [IF EXISTS] [schema.]name
-DROP INDEX [IF EXISTS] [schema.]name
-DROP VIEW [IF EXISTS] [schema.]name
-DROP MATERIALIZED VIEW [IF EXISTS] [schema.]name
-DROP EXTERNAL TABLE [IF EXISTS] name
-DROP CONNECTION [IF EXISTS] name
+```railroad
+drop-stmt
 ```
 
 Without `IF EXISTS`, dropping something that does not exist fails with `SMALT_ERROR` (`no such table: x`, `no such index: x`, `no such view: x`, `no such materialized view: x`, `no such external table: x`, `no such connection: x`). With it, nothing happens.

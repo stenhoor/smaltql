@@ -161,6 +161,24 @@ SELECT 1+1, 1 + 1 AS two, upper('a')
 | --- | --- | --- |
 | 2 | 2 | A |
 
+## Syntax diagrams {#syntax-diagrams}
+
+Each statement's page draws its syntax as a railroad diagram: follow a line from the left dot to the right one, and
+every path you can take is a statement smaltql reads. Keywords are in rounded boxes. A rule in a square box opens in
+place when you click it (or press Enter), and closes again; a rule in a dashed box is a token:
+[`name`](#identifiers), [`string-literal`, `numeric-literal` and `blob-literal`](#literals), and
+[`parameter`](#parameters). **EBNF** under a diagram shows the same rules as text.
+
+The diagrams are drawn from one grammar, [`docs/grammar.ebnf`](https://github.com/stenhoor/smaltql/blob/main/docs/grammar.ebnf),
+written from the parser and tested against it: every statement it describes, the parser reads. It lists what smaltql
+runs; forms the parser reads only to reject them are in [Differences from SQLite](../../guide/sqlite-differences#not-supported).
+The diagrams show which forms exist; what they mean, and where an aggregate or a window function may appear, is in each
+page's text.
+
+```railroad
+sql-stmt
+```
+
 ## Statements
 
 | Statement | Page |

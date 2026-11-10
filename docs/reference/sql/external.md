@@ -8,8 +8,8 @@ This page is the syntax reference. For a walk-through, registering files and cre
 
 ## CREATE CONNECTION
 
-```text
-CREATE CONNECTION [IF NOT EXISTS] name WITH (option = value [, ...])
+```railroad
+create-connection-stmt
 ```
 
 A connection is stored in the database file. It holds no secrets: `credentials` names a provider that the application registers at runtime with `registerCredentials(db, name, provider)` from `@smaltdb/external/client` (see [credentials](../../guide/external-data#credentials)), and that provider's material is only sent to URLs that start with its `endpoint`.
@@ -73,9 +73,8 @@ Fails while an external table uses the connection: `connection lake is used by e
 
 ## CREATE EXTERNAL TABLE
 
-```text
-CREATE EXTERNAL TABLE [IF NOT EXISTS] [main.]name [(column [type] [, ...])]
-  WITH (location = 'where', option = value [, ...])
+```railroad
+create-external-table-stmt
 ```
 
 | Option | Meaning |
