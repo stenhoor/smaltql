@@ -448,3 +448,19 @@ SELECT u.tag, u.pos FROM unnest(ARRAY['a', 'b', 'c']) WITH ORDINALITY AS u(tag, 
 ## Struct fields {#struct-fields}
 
 A struct column (from a table another language defined, or Parquet) reads as JSON text. `(s).name` reads one of its fields (a smaltdb extension, as in Postgres): the parentheses are needed, and names match regardless of case. A field that is a list or struct reads as its JSON text, and list functions and `unnest` take it as a list. `(s).*` is not supported.
+
+## UNPIVOT {#unpivot}
+
+`t UNPIVOT (value FOR name IN (col, …))` after a table or subquery in `FROM` turns columns into rows (a smaltdb extension, as in the SQL standard and DuckDB). Each row gives one row per listed column, holding its other columns, the column's name in `name` (or a label: `jan AS 'January'`) and its value in `value`, in the rows' order and then the columns'. A NULL value gives no row; `UNPIVOT INCLUDE NULLS (…)` keeps it.
+
+```sql
+CREATE TABLE sales(shop TEXT, jan INTEGER, feb INTEGER);
+INSERT INTO sales VALUES ('a', 10, 20), ('b', NULL, 5);
+SELECT shop, month, amt FROM sales UNPIVOT (amt FOR month IN (jan, feb));
+```
+
+| shop | month | amt |
+| --- | --- | --- |
+| a | jan | 10 |
+| a | feb | 20 |
+| b | feb | 5 |
