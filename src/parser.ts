@@ -1712,7 +1712,15 @@ class Parser {
   private nameExpr(): A.Expr {
     const pos = this.pos();
     const first = this.vals[this.p++] as string;
-    if (first.toUpperCase() === 'ARRAY' && this.acceptOp('[')) {
+    const upper = first.toUpperCase();
+    if ((upper === 'DATE' || upper === 'TIMESTAMP' || upper === 'INTERVAL') && this.kinds[this.p] === TK_STRING) {
+      // `DATE '…'`, `TIMESTAMP '…'`, `INTERVAL '…'` (SQL standard; smaltdb ADR 0022): a typed literal.
+      const lpos = this.pos();
+      const value = this.vals[this.p++] as string;
+      const text: A.Expr = { kind: 'literal', pos: lpos, value, isReal: false, end: this.ends[this.p - 1] };
+      return { kind: 'call', pos, name: '#' + upper.toLowerCase(), args: [text], star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
+    }
+    if (upper === 'ARRAY' && this.acceptOp('[')) {
       // `ARRAY[a, b, …]` (Postgres; smaltdb ADR 0022): the engine's list_of.
       const args: A.Expr[] = [];
       if (!this.isOp(']')) {
@@ -1720,7 +1728,7 @@ class Parser {
         while (this.acceptOp(','));
       }
       this.expectOp(']');
-      return { kind: 'call', pos, name: 'list_of', args, star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
+      return { kind: 'call', pos, name: '#array', args, star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
     }
     if (this.acceptOp('(')) return this.call(first.toLowerCase(), pos);
     if (!this.acceptOp('.')) return { kind: 'column', pos, schema: undefined, table: undefined, name: first, end: this.ends[this.p - 1] };

@@ -237,6 +237,13 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       }
     }
     case 'binary':
+      if ((e.op === '+' || e.op === '-') && e.right.kind === 'call' && e.right.name === '#interval') {
+        // `x ± INTERVAL '…'` (Postgres; smaltdb ADR 0022): the engine's calendar-aware offset_by.
+        return bindOffset(bindTemporal(e.left, scope), intervalOffset(e.right, e.op === '-'));
+      }
+      if (e.op === '+' && e.left.kind === 'call' && e.left.name === '#interval') {
+        return bindOffset(bindTemporal(e.right, scope), intervalOffset(e.left, false));
+      }
       if (e.op === '=' && e.right.kind === 'call' && e.right.name === 'any' && e.right.args.length === 1 && !e.right.over) {
         // `v = ANY (list)` (Postgres; smaltdb ADR 0022): whether an element of the list equals v.
         const l = listArg(bindExpr(e.right.args[0]!, scope));
@@ -465,6 +472,8 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       const length = call('add', [call('sub', [to, from], 'int'), lit(1, 'int')], 'int');
       return withMeaning(sqlValue(call('list_slice', [l, offset, length], typeOf(l)), undefined), plain);
     }
+    case '#interval':
+      throw new SmaltError('SMALT_ERROR', 'an INTERVAL can only be added to or subtracted from a date or time');
     case 'now':
       arity(0, 0);
       return withMeaning(call('current_timestamp', [], 'text'), plain);
@@ -500,6 +509,34 @@ function listArg(b: BoundExpr): BoundExpr {
 
 /** The element type of `list<T>`. */
 const elementType = (t: StaticType): StaticType => t.slice(5, -1) as StaticType;
+
+/** `x` moved by `offset` (engine offset text such as `1mo2d`), as SQL holds the result. */
+function bindOffset(x: BoundExpr, offset: BoundExpr): BoundExpr {
+  const t = asTemporal(x);
+  return withMeaning(sqlValue(call('offset_by', [t, offset], typeOf(t)), undefined), { collation: Collation.Binary, collSrc: CollSrc.None, affinity: 'NONE' });
+}
+
+const INTERVAL_UNITS: Readonly<Record<string, string>> = {
+  year: 'y', years: 'y', quarter: 'q', quarters: 'q', month: 'mo', months: 'mo', mon: 'mo', mons: 'mo', week: 'w', weeks: 'w',
+  day: 'd', days: 'd', hour: 'h', hours: 'h', minute: 'm', minutes: 'm', min: 'm', mins: 'm', second: 's', seconds: 's',
+  sec: 's', secs: 's', millisecond: 'ms', milliseconds: 'ms', microsecond: 'us', microseconds: 'us',
+};
+
+/** `INTERVAL '1 month 2 days'` as the engine's offset text (`1mo2d`), negated for subtraction. */
+function intervalOffset(e: CallExpr, negate: boolean): BoundExpr {
+  const a = e.args[0];
+  const text = a && a.kind === 'literal' ? String(a.value) : '';
+  const parts = [...text.matchAll(/([+-]?\d+)\s*([a-z]+)/gi)];
+  const rest = text.replace(/([+-]?\d+)\s*([a-z]+)/gi, '').trim();
+  if (parts.length === 0 || rest !== '') throw new SmaltError('SMALT_ERROR', `invalid INTERVAL: '${text}' (for example '1 month 2 days')`);
+  const out = parts.map(([, n, unit]) => {
+    const u = INTERVAL_UNITS[unit!.toLowerCase()];
+    if (!u) throw new SmaltError('SMALT_ERROR', `invalid INTERVAL unit: ${unit}`);
+    const v = negate ? -Number(n) : Number(n);
+    return `${v}${u}`;
+  });
+  return lit(out.join(''), 'text');
+}
 
 /** The fields of `EXTRACT` and `date_part`, and the engine function each reads. */
 const DATE_PARTS: Readonly<Record<string, string>> = {

@@ -11,12 +11,12 @@ import { CollSrc } from './meaning.js';
  * other engine function, including one the engine adds later, is `no such function` in SQL until smaltql spells it.
  */
 const SQL_FUNCTIONS = new Set([
-  'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'avg', 'cast_date', 'cast_datetime', 'ceil',
+  'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'avg', 'ceil',
   'ceiling', 'changes', 'char', 'coalesce', 'concat', 'concat_ws', 'corr', 'cos', 'cosh', 'count', 'covar_pop',
   'covar_samp', 'date', 'datetime', 'day', 'day_of_year', 'degrees', 'exp', 'first', 'floor', 'format',
   'from_zone', 'group_concat', 'hex', 'hour', 'if', 'ifnull', 'iif', 'implode', 'instr',
   'julianday', 'kurtosis', 'kurtosis_pop', 'last', 'last_insert_rowid', 'length', 'likelihood', 'likely',
-  'list_max', 'list_mean', 'list_min', 'list_of',
+  'list_max', 'list_mean', 'list_min',
   'list_sum', 'ln', 'log', 'log10', 'log2', 'lower',
   'lower_unicode', 'ltrim', 'make_date', 'make_datetime', 'max', 'median', 'microsecond', 'min', 'minute', 'mod',
   'month', 'nullif', 'octet_length', 'offset_by', 'percentile', 'percentile_cont',
@@ -33,6 +33,10 @@ const SQL_SPELLINGS: Readonly<Record<string, string>> = {
   round_even: 'round_half_even',
   // Dates and times (step 3).
   make_timestamp: 'make_datetime',
+  // What the parser gives typed literals and ARRAY[…]: names SQL text can't spell.
+  '#date': 'cast_date',
+  '#timestamp': 'cast_datetime',
+  '#array': 'list_of',
   strptime: 'parse_datetime',
   // Lists (smaltdb ADR 0022, step 5): Postgres's and DuckDB's names.
   cardinality: 'list_len',
