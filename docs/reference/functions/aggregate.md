@@ -11,6 +11,9 @@ An aggregate function computes one value from many rows: from each group of a `G
 | [`min(X)`](#min), [`max(X)`](#max) | Smallest or largest value |
 | [`group_concat(X [, SEP])`](#group_concat) | Values joined into text |
 | [`string_agg(X, SEP)`](#string_agg) | Same as `group_concat(X, SEP)` |
+| [`first(X [, KEY])`, `last(X [, KEY])`](#first) | The value at the first or last row, or at the least or greatest key |
+| [`arg_min(X, KEY)`, `arg_max(X, KEY)`](#first) | `X` at the least or greatest `KEY` |
+| [`array_agg(X)`, `implode(X)`](./list#array_agg) | The values as a list |
 | [`var_samp(X)`, `variance(X)`, `var_pop(X)`](#variance) | Sample or population variance |
 | [`stddev_samp(X)`, `stddev(X)`, `stddev_pop(X)`](#variance) | Sample or population standard deviation |
 | [`covar_samp(Y, X)`, `covar_pop(Y, X)`](#covariance) | Sample or population covariance |
@@ -259,6 +262,38 @@ SELECT string_agg(region, '; ') AS regions FROM (SELECT DISTINCT region FROM sal
 | regions |
 | --- |
 | north; south |
+
+## first, last, arg_min, arg_max {#first}
+
+```
+first(X)
+last(X)
+first(X, KEY [, KEY2])
+last(X, KEY [, KEY2])
+arg_min(X, KEY)
+arg_max(X, KEY)
+```
+
+A value from one row of the group. These are smaltdb extensions.
+
+- **`first(X)`, `last(X)`:** `X` at the group's first or last row, in the order the rows reach the aggregate (sort in
+  a subquery to choose it). That value may be NULL.
+- **`first(X, KEY)`, `last(X, KEY)`:** `X` at the row with the least `KEY` (`first`) or the greatest (`last`). Rows
+  whose `KEY` is NULL are skipped. Rows with equal keys are taken in input order: `first` takes the earliest of them,
+  `last` the latest. A second key breaks ties.
+- **`arg_min(X, KEY)`, `arg_max(X, KEY)`:** `first(X, KEY)` and `last(X, KEY)`, under the names other databases use.
+- **Returns:** a value of `X`'s type; NULL for an empty group.
+
+```sql
+SELECT region, first(product) AS first_row, last(product) AS last_row,
+       arg_max(product, qty) AS biggest_order, arg_min(product, price) AS cheapest
+FROM sale GROUP BY region ORDER BY region;
+```
+
+| region | first_row | last_row | biggest_order | cheapest |
+| --- | --- | --- | --- | --- |
+| north | apple | apple | apple | apple |
+| south | apple | plum | apple | apple |
 
 ## Statistics {#statistics}
 

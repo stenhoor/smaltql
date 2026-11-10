@@ -2,171 +2,79 @@
 
 Functions SQLite doesn't have, which smaltql calls from smaltdb's engine ([ADR 0022](https://smaltdb.dev/adr/0022-sql-for-the-new-engine-features)). They read and give values as SQL holds them: dates and times as text, lists as JSON text. Other engine functions are not SQL: calling one fails with `no such function`.
 
+This page lists them; each links to its entry, with its arguments, NULL handling, errors and examples.
+
 ## Dates and times {#dates}
 
-`make_date(YEAR, MONTH, DAY)` builds a date, and `make_datetime(YEAR, MONTH, DAY [, HOUR [, MINUTE [, SECOND [, MICROSECOND]]]])` a date and time; the clock parts default to 0. A date that doesn't exist (`2025, 2, 29`) is an error (`SMALT_RANGE`).
-
-```sql
-SELECT make_date(2026, 11, 7) AS d, make_datetime(2026, 11, 7, 14, 30) AS ts;
-```
-
-| d | ts |
+| Function | Result |
 | --- | --- |
-| 2026-11-07 | 2026-11-07 14:30:00 |
-
-These functions take SQL's date text too (`'2026-11-07'`, `'2026-11-07 10:30:00'`), and give NULL for text that isn't a date.
-
-- `EXTRACT(FIELD FROM X)`, `date_part('FIELD', X)`: the part as an integer. Fields: `year`, `month`, `day`, `hour`, `minute`, `second`, `microsecond`, `isodow` (Monday is 1), `doy` (day of the year).
-- `year(X)`, `month(X)`, `day(X)`, `hour(X)`, `minute(X)`, `second(X)`: the same parts as functions.
-- `date_trunc('UNIT', X)`: `X` cut to the start of its `year`, `quarter`, `month`, `week` (Monday), `day`, `hour`, `minute` or `second`.
-- `strptime(TEXT, FORMAT)`: text read with a `strftime` format (the codes of [strftime](./datetime#strftime)), or NULL.
-- `make_timestamp(…)` is `make_datetime(…)`, and `now()` is `CURRENT_TIMESTAMP`.
-
-```sql
-SELECT EXTRACT(month FROM '2026-11-07') AS m, year('2026-11-07') AS y,
-       date_trunc('month', '2026-11-07 10:30:00') AS month_start,
-       strptime('07/11/2026', '%d/%m/%Y') AS parsed;
-```
-
-| m | y | month_start | parsed |
-| --- | --- | --- | --- |
-| 11 | 2026 | 2026-11-01 00:00:00 | 2026-11-07 00:00:00 |
-
-`DATE '…'`, `TIME '…'` and `TIMESTAMP '…'` are typed literals: the text must be a date (`2026-11-07`), a time (`12:30:00`) or a date and time, or the statement fails. `x + INTERVAL '…'` and `x - INTERVAL '…'` move a date or time by years, quarters, months, weeks, days, hours, minutes, seconds, milliseconds or microseconds (`'1 month 2 days'`). Months move on the calendar and keep the day of the month, or take the last day of a shorter month. An `INTERVAL` can't be used on its own, or added to a `TIME`.
-
-```sql
-SELECT DATE '2026-01-31' + INTERVAL '1 month' AS next_month,
-       TIMESTAMP '2026-11-07 10:00:00' - INTERVAL '30 minutes' AS earlier;
-```
-
-| next_month | earlier |
-| --- | --- |
-| 2026-02-28 | 2026-11-07 09:30:00 |
-
-A date plus a number keeps SQLite's meaning (`'2026-11-07' + 1` is `2027`): add an `INTERVAL '1 day'` to move by days.
+| [`make_date(Y, M, D)`](./dates#make_date) | A date from its parts |
+| [`make_datetime(…)`, `make_timestamp(…)`](./dates#make_datetime) | A date and time from its parts |
+| [`year`, `month`, `day`, `weekday`, `day_of_year`](./dates#year) | A part of a date |
+| [`hour`, `minute`, `second`, `microsecond`](./dates#hour) | A part of a time |
+| [`EXTRACT(FIELD FROM X)`, `date_part(FIELD, X)`](./dates#extract) | A part named by a field |
+| [`date_trunc(UNIT, X)`](./dates#date_trunc) | A date or time cut to the start of a unit |
+| [`strptime(TEXT, FORMAT)`](./dates#strptime) | Text read as a date and time |
+| [`offset_by(X, OFFSET)`](./dates#offset_by) | A date or time moved by an offset |
+| [`now()`](./dates#now) | The current date and time |
+| [`DATE '…'`, `TIME '…'`, `TIMESTAMP '…'`](./dates#literals) | Typed literals |
+| [`INTERVAL '…'`](./dates#interval) | Added to or subtracted from a date or time |
 
 ## Time zones {#zones}
 
-A zone is an IANA name (`Europe/Paris`), `UTC` or an offset (`+05:30`), and may come from a column. A date and time carries no zone.
-
-- `to_zone(TS, ZONE)`: the wall-clock time in `ZONE` of `TS`, a UTC instant.
-- `from_zone(TS, ZONE [, HOW])`: the UTC instant of `TS`, a wall-clock time in `ZONE`. A time that occurs twice is the earlier unless `HOW` is `later`; one that doesn't occur moves forward by the gap (`earlier` moves it back; `reject` makes either an error).
-- `zone_offset(TS, ZONE)`: the zone's offset from UTC at `TS`, as an ISO 8601 duration.
-
-```sql
-SELECT to_zone(make_datetime(2026, 7, 1, 12), 'Europe/Paris') AS paris,
-       from_zone(make_datetime(2026, 7, 1, 14), 'Europe/Paris') AS utc,
-       zone_offset(make_datetime(2026, 1, 1), 'America/New_York') AS "offset";
-```
-
-| paris | utc | offset |
-| --- | --- | --- |
-| 2026-07-01 14:00:00 | 2026-07-01 12:00:00 | -PT5H |
+| Function | Result |
+| --- | --- |
+| [`to_zone(TS, ZONE)`](./dates#to_zone) | The wall-clock time in a zone of a UTC instant |
+| [`from_zone(TS, ZONE [, HOW])`](./dates#to_zone) | The UTC instant of a wall-clock time in a zone |
+| [`zone_offset(TS, ZONE)`](./dates#to_zone) | A zone's offset from UTC |
 
 ## Lists {#lists}
 
-A list shows in SQL as its JSON text. `ARRAY[a, b, …]` builds one, and `array_agg(X)` gathers a group's values into one, in the group's order. Positions count from 1, and negative positions from the end.
-
-| Function | Gives |
+| Function | Result |
 | --- | --- |
-| `cardinality(L)`, `array_length(L)` | the number of elements |
-| `list_extract(L, I)` | the element at `I` (NULL out of range, or for 0) |
-| `array_slice(L, FROM, TO)` | the elements from `FROM` to `TO`, both included |
-| `array_contains(L, V)`, `V = ANY (L)` | 1 if an element equals `V`, else 0 |
-| `array_cat(A, B)` | `A`'s elements, then `B`'s |
-| `array_to_string(L, SEP)` | the non-NULL elements as text, joined by `SEP` |
-| `array_sort(L)`, `array_distinct(L)`, `array_reverse(L)` | the elements sorted (NULLs first), without repeats, or reversed |
-
-```sql
-SELECT ARRAY[3, 1, 2] AS l, cardinality(ARRAY[3, 1, 2]) AS n, list_extract(ARRAY[3, 1, 2], -1) AS last_one,
-       2 = ANY (ARRAY[3, 1, 2]) AS has_two, array_sort(ARRAY[3, 1, 2]) AS sorted;
-```
-
-| l | n | last_one | has_two | sorted |
-| --- | --- | --- | --- | --- |
-| [3,1,2] | 3 | 2 | 1 | [1,2,3] |
-
-`list_sum`, `list_mean`, `list_min` and `list_max` reduce a list's non-NULL numbers: the sum (0 for none), the mean, the least and the greatest (NULL for none).
-
-```sql
-SELECT list_sum(ARRAY[1, 2, 3]) AS total, list_mean(ARRAY[1, 2, 3]) AS mean,
-       list_min(ARRAY[3, 1, 2]) AS least, list_max(ARRAY[3, 1, 2]) AS greatest;
-```
-
-| total | mean | least | greatest |
-| --- | --- | --- | --- |
-| 6 | 2 | 1 | 3 |
+| [`ARRAY[…]`](./list#array) | A list of the values |
+| [`cardinality(L)`, `array_length(L)`](./list#cardinality) | The number of elements |
+| [`list_extract(L, I)`](./list#list_extract) | The element at a position |
+| [`array_slice(L, FROM, TO)`](./list#array_slice) | Part of a list |
+| [`array_contains(L, V)`, `V = ANY (L)`](./list#array_contains) | Whether an element equals `V` |
+| [`array_cat(A, B)`](./list#array_cat) | Two lists joined |
+| [`array_to_string(L, SEP)`](./list#array_to_string) | The elements as text |
+| [`array_sort`, `array_distinct`, `array_reverse`](./list#array_sort) | The elements sorted, without repeats, or reversed |
+| [`list_sum`, `list_mean`, `list_min`, `list_max`](./list#list_sum) | The sum, mean, least or greatest number |
+| [`array_agg(X)`, `implode(X)`](./list#array_agg) | An aggregate: a group's values as a list |
+| [`unnest(L)`](./list#unnest) | A table function: one row per element |
 
 ## Text {#text}
 
-`lower_unicode(X)` and `upper_unicode(X)` map the case of every script; `lower` and `upper` map ASCII letters only, as in SQLite.
-
-```sql
-SELECT lower('ÄBC') AS ascii, lower_unicode('ÄBC') AS "unicode", upper_unicode('straße') AS "upper";
-```
-
-| ascii | unicode | upper |
-| --- | --- | --- |
-| Äbc | äbc | STRASSE |
-
-## First and last {#first-last}
-
-The aggregates `first(X)` and `last(X)` give the value of a group's first or last row, in the order rows reach the aggregate. `first(X, KEY)` gives `X` at the row with the smallest `KEY`, and `last(X, KEY)` at the largest, skipping rows whose key is NULL. `arg_min(X, KEY)` and `arg_max(X, KEY)` are the same as `first(X, KEY)` and `last(X, KEY)`.
-
-```sql
-SELECT first(x) AS first_x, last(x) AS last_x, arg_min(x, k) AS x_at_least_k
-FROM (SELECT 'a' AS x, 2 AS k UNION ALL SELECT 'b', 1 UNION ALL SELECT 'c', 3);
-```
-
-| first_x | last_x | x_at_least_k |
-| --- | --- | --- |
-| a | c | b |
-
-## Rounding half to even {#round_even}
-
-`round_even(X [, DIGITS])` rounds `X` to `DIGITS` places (default 0) with halves to the even digit, decided on the exact binary value. `round` rounds halves away from zero, as in SQLite.
-
-```sql
-SELECT round(2.5) AS "round", round_even(2.5) AS round_even, round_even(0.125, 2) AS two_places;
-```
-
-| round | round_even | two_places |
-| --- | --- | --- |
-| 3 | 2 | 0.12 |
+| Function | Result |
+| --- | --- |
+| [`lower_unicode(X)`, `upper_unicode(X)`](./string#lower_unicode) | Lower or upper case of every script |
 
 ## Regular expressions {#regexp}
 
-Patterns are JavaScript regular expressions. `FLAGS` may hold `i` (ignore case), `m` and `s`; `regexp_replace` also takes `g`, to replace every match. The replacement may use `$1` and `$&`.
-
-- `X REGEXP P`, `regexp_like(X, P [, FLAGS])`: 1 if `P` matches anywhere in `X`, else 0.
-- `regexp_substr(X, P [, FLAGS])`: the first match, or NULL.
-- `regexp_replace(X, P, R [, FLAGS])`: `X` with the first match, or with `g` every match, replaced by `R`.
-
-```sql
-SELECT 'abc' REGEXP 'b.' AS m, regexp_like('ABC', 'b', 'i') AS i,
-       regexp_substr('x12y34', '[0-9]+') AS first, regexp_replace('a1b2', '[0-9]', '#', 'g') AS every;
-```
-
-| m | i | first | every |
-| --- | --- | --- | --- |
-| 1 | 1 | 12 | a#b# |
-
-## NaN {#isnan}
-
-`isnan(X)` is 1 when `X` is NaN, 0 otherwise, and NULL for NULL. SQL itself gives NULL where IEEE arithmetic gives NaN (`0.0 / 0.0`), but data another language stored can hold NaN, and SQL shows it as NaN.
-
-## IGNORE NULLS {#ignore-nulls}
-
-`IGNORE NULLS` before `OVER` makes `lag`, `lead`, `first_value`, `last_value` and `nth_value` skip rows whose value is NULL. See [window functions](./window#navigation-functions).
-
-```sql
-SELECT i, lag(x) IGNORE NULLS OVER (ORDER BY i) AS prev
-FROM (SELECT 1 AS i, 10 AS x UNION ALL SELECT 2, NULL UNION ALL SELECT 3, 30)
-ORDER BY i;
-```
-
-| i | prev |
+| Function | Result |
 | --- | --- |
-| 1 | NULL |
-| 2 | 10 |
-| 3 | 10 |
+| [`X REGEXP P`, `regexp_like(X, P [, FLAGS])`](./regex#regexp_like) | Whether a pattern matches |
+| [`regexp_substr(X, P [, FLAGS])`](./regex#regexp_substr) | The first match |
+| [`regexp_replace(X, P, R [, FLAGS])`](./regex#regexp_replace) | The first match, or every match, replaced |
+| [`regex_match`, `regex_find`, `regex_replace`, `regex_replace_all`](./regex#regex) | The engine's names for the same functions |
+
+## Aggregates {#first-last}
+
+| Function | Result |
+| --- | --- |
+| [`first(X [, KEY])`, `last(X [, KEY])`](./aggregate#first) | The value of the first or last row, or at the least or greatest key |
+| [`arg_min(X, KEY)`, `arg_max(X, KEY)`](./aggregate#first) | The same as `first(X, KEY)` and `last(X, KEY)` |
+
+## Numbers {#round_even}
+
+| Function | Result |
+| --- | --- |
+| [`round_even(X [, DIGITS])`](./math#round_even) | Rounded with halves to even |
+| [`isnan(X)`](./math#isnan) | Whether a number is NaN |
+
+## Window functions {#ignore-nulls}
+
+| Syntax | Result |
+| --- | --- |
+| [`IGNORE NULLS`](./window#ignore-nulls) | `lag`, `lead`, `first_value`, `last_value` and `nth_value` skip NULL values |
