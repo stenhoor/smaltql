@@ -1911,8 +1911,10 @@ class Parser {
     }
     // `IGNORE NULLS` / `RESPECT NULLS` before OVER (SQL standard; smaltdb ADR 0022).
     let ignoreNulls: boolean | undefined;
-    if ((this.isKw('IGNORE') || this.isKw('RESPECT')) && this.kws[this.p + 1] === 'NULLS') {
-      ignoreNulls = this.isKw('IGNORE');
+    // RESPECT isn't a keyword: matched as a word, so `respect` stays a name (smaltql#55).
+    const respect = this.kinds[this.p] === TK_ID && String(this.vals[this.p]).toUpperCase() === 'RESPECT';
+    if ((this.isKw('IGNORE') || respect) && this.kws[this.p + 1] === 'NULLS') {
+      ignoreNulls = !respect;
       this.p += 2;
     }
     let over: A.WindowSpec | string | undefined;
@@ -1928,7 +1930,7 @@ class Parser {
     if (ignoreNulls !== undefined && over === undefined) throw new SmaltError('SMALT_ERROR', `${ignoreNulls ? 'IGNORE' : 'RESPECT'} NULLS is only valid with window functions`);
     // DuckDB's names for the engine's first / last with a key (smaltdb ADR 0022).
     const fn = name === 'arg_min' ? 'first' : name === 'arg_max' ? 'last' : name === 'array_agg' ? 'implode' : name;
-    return { kind: 'call', pos, name: fn, args, star, distinct, filter, over, orderBy, ...(ignoreNulls ? { ignoreNulls } : {}), end: this.ends[this.p - 1] };
+    return { kind: 'call', pos, name: fn, args, star, distinct, filter, over, orderBy, ...(ignoreNulls !== undefined ? { ignoreNulls } : {}), end: this.ends[this.p - 1] };
   }
 
   /** `( [base] [PARTITION BY ...] [ORDER BY ...] [frame] )` */

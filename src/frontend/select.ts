@@ -861,8 +861,9 @@ class FrontEnd {
     const def = defs[defIndex];
     const at = def.calls.length;
     // IGNORE NULLS is for the navigation functions only (smaltql#49): a SQL error here, not the engine's plan error.
-    if (call.ignoreNulls && !['lag', 'lead', 'first_value', 'last_value', 'nth_value'].includes(name)) {
-      throw new SmaltError('SMALT_ERROR', `IGNORE NULLS is not valid for ${name}(): only lag, lead, first_value, last_value and nth_value take it`);
+    if (call.ignoreNulls !== undefined && !['lag', 'lead', 'first_value', 'last_value', 'nth_value'].includes(name)) {
+      const clause = call.ignoreNulls ? 'IGNORE NULLS' : 'RESPECT NULLS';
+      throw new SmaltError('SMALT_ERROR', `${clause} is not valid for ${name}(): only lag, lead, first_value, last_value and nth_value take it`);
     }
     def.calls.push({ fn: name, args, star: call.star, ...(filter ? { filter } : {}), ...(call.ignoreNulls ? { ignoreNulls: true } : {}), type, collation: collationName(callCollation) });
     const di = defIndex;

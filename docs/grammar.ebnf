@@ -228,7 +228,7 @@ binary-operator ::= '||' | '*' | '/' | '%' | '+' | '-' | '&' | '|' | '<<' | '>>'
                   | '<' | '<=' | '>' | '>=' | '=' | '==' | '!=' | '<>' | 'AND' | 'OR'
 
 function-call ::= name '(' ('DISTINCT'? expr (',' expr)* | '*')? ')' ('FILTER' '(' 'WHERE' expr ')')?
-                  (('IGNORE' 'NULLS')? 'OVER' (window-spec | name))?
+                  ((('IGNORE' | 'RESPECT') 'NULLS')? 'OVER' (window-spec | name))?
                 | 'EXTRACT' '(' date-field 'FROM' expr ')'
 
 date-field ::= 'YEAR' | 'MONTH' | 'DAY' | 'HOUR' | 'MINUTE' | 'SECOND' | 'MICROSECOND' | 'MICROSECONDS' | 'ISODOW' | 'DOY'
