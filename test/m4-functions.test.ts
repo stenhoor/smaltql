@@ -42,6 +42,16 @@ describe('SQL spellings of the engine operations (ADR 0022 step 4)', () => {
     expect(() => all('SELECT row_number() IGNORE NULLS OVER () FROM (SELECT 1 AS x)')).toThrow(/not valid for row_number\(\)/);
   });
 
+  it('RESPECT NULLS is the default: the same rows as no clause; the same rule as IGNORE NULLS (smaltql#55)', () => {
+    const q = (clause: string) => all(`SELECT i, lag(x) ${clause} OVER (ORDER BY i) FROM (SELECT 1 AS i, 10 AS x UNION ALL SELECT 2, NULL UNION ALL SELECT 3, 30) ORDER BY i`);
+    expect(q('RESPECT NULLS')).toEqual([[1, null], [2, 10], [3, null]]);
+    expect(q('RESPECT NULLS')).toEqual(q(''));
+    expect(() => all('SELECT sum(x) RESPECT NULLS OVER () FROM (SELECT 1 AS x)')).toThrow(/RESPECT NULLS is not valid for sum\(\)/);
+    expect(() => all('SELECT lag(x) RESPECT NULLS FROM (SELECT 1 AS x)')).toThrow(/RESPECT NULLS is only valid with window functions/);
+    expect(all('SELECT respect.x FROM (SELECT 1 AS x) AS respect')).toEqual([[1]]);
+    expect(all('SELECT abs(x) respect FROM (SELECT -1 AS x)')).toEqual([[1]]);
+  });
+
   it('IGNORE NULLS needs OVER', () => {
     expect(() => all('SELECT first(x) IGNORE NULLS FROM (SELECT 1 AS x)')).toThrow(/only valid with window functions/);
   });

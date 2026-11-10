@@ -174,8 +174,8 @@ export interface CallExpr extends Node {
   filter?: Expr;
   /** Window function `OVER (...)` or `OVER name`. */
   over?: WindowSpec | string;
-  /** `IGNORE NULLS` before `OVER`: navigation skips NULL values. */
-  ignoreNulls?: boolean;
+  /** `IGNORE NULLS` (true) or `RESPECT NULLS` (false, the default) before `OVER`. */
+    ignoreNulls?: boolean;
   /** Aggregate argument ordering, e.g. `group_concat(x, ',' ORDER BY y)` (SQLite 3.44+). */
   orderBy?: OrderingTerm[];
 }

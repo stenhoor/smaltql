@@ -205,15 +205,16 @@ ORDER BY points, player;
 | bob | 20 | dan | bob | cat | ann |
 | cat | 20 | dan | cat | cat | ann |
 
-### IGNORE NULLS {#ignore-nulls}
+### IGNORE NULLS, RESPECT NULLS {#ignore-nulls}
 
 ```
 lag(X …) IGNORE NULLS OVER (…)
+lag(X …) RESPECT NULLS OVER (…)
 ```
 
 Written between a navigation function's call and `OVER`, `IGNORE NULLS` makes `lag`, `lead`, `first_value`,
 `last_value` and `nth_value` skip the rows where `X` is NULL: `lag` gives the nearest earlier non-NULL value, and so
-on. Without it, NULLs count as rows, as in SQLite. Other window functions don't take it. A smaltdb extension.
+on. Without it, NULLs count as rows, as in SQLite; `RESPECT NULLS` says so explicitly and changes nothing. Other window functions take neither. A smaltdb extension.
 
 ```sql
 SELECT i, x, lag(x) OVER (ORDER BY i) AS prev, lag(x) IGNORE NULLS OVER (ORDER BY i) AS prev_value,
@@ -229,7 +230,7 @@ ORDER BY i;
 | 3 | NULL | 10 | 10 | 10 |
 | 4 | 30 | NULL | 10 | 10 |
 
-On any other window function it fails with `SMALT_ERROR`:
+On any other window function either clause fails with `SMALT_ERROR`:
 
 <!-- docs:error SMALT_ERROR -->
 ```sql
