@@ -1744,6 +1744,12 @@ class Parser {
       filter = this.expr();
       this.expectOp(')');
     }
+    // `IGNORE NULLS` / `RESPECT NULLS` before OVER (SQL standard; smaltdb ADR 0022).
+    let ignoreNulls: boolean | undefined;
+    if ((this.isKw('IGNORE') || this.isKw('RESPECT')) && this.kws[this.p + 1] === 'NULLS') {
+      ignoreNulls = this.isKw('IGNORE');
+      this.p += 2;
+    }
     let over: A.WindowSpec | string | undefined;
     if (this.isKw('OVER')) {
       if (this.isOpAt(this.p + 1, '(')) {
@@ -1754,7 +1760,10 @@ class Parser {
         over = this.name();
       }
     }
-    return { kind: 'call', pos, name, args, star, distinct, filter, over, orderBy, end: this.ends[this.p - 1] };
+    if (ignoreNulls !== undefined && over === undefined) throw new SmaltError('SMALT_ERROR', `${ignoreNulls ? 'IGNORE' : 'RESPECT'} NULLS is only valid with window functions`);
+    // DuckDB's names for the engine's first / last with a key (smaltdb ADR 0022).
+    const fn = name === 'arg_min' ? 'first' : name === 'arg_max' ? 'last' : name;
+    return { kind: 'call', pos, name: fn, args, star, distinct, filter, over, orderBy, ...(ignoreNulls ? { ignoreNulls } : {}), end: this.ends[this.p - 1] };
   }
 
   /** `( [base] [PARTITION BY ...] [ORDER BY ...] [frame] )` */

@@ -842,7 +842,7 @@ class FrontEnd {
     const collation = meta[0]?.collSrc && kind !== 'aggregate' && !ranking ? meta[0].collation : Collation.Binary;
     const def = defs[defIndex];
     const at = def.calls.length;
-    def.calls.push({ fn: name, args, star: call.star, ...(filter ? { filter } : {}), type, collation: collationName(callCollation) });
+    def.calls.push({ fn: name, args, star: call.star, ...(filter ? { filter } : {}), ...(call.ignoreNulls ? { ignoreNulls: true } : {}), type, collation: collationName(callCollation) });
     const di = defIndex;
     const index = (): number => inputWidth() + defs.slice(0, di).reduce((n, d) => n + d.calls.length, 0) + at;
     const binding: ColumnBinding = { reg: this.ref({ depth: 0, input: 0, index, type, collation }), type, collation, affinity: 'NONE' };

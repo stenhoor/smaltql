@@ -163,7 +163,7 @@ SELECT 'Hello' LIKE 'h%' AS a, 'Hello' GLOB 'h*' AS b, 'Hello' GLOB 'H?llo' AS c
 | --- | --- | --- | --- | --- |
 | 1 | 0 | 1 | 1 | 1 |
 
-`MATCH` and `REGEXP` are parsed, but no functions implement them, so they fail with `no such function: regexp` (`SMALT_ERROR`), as in SQLite without extensions.
+`x REGEXP p` is true when the JavaScript regular expression `p` matches `x` anywhere ([smaltdb extensions](../functions/extensions#regexp)). `MATCH` is parsed, but no function implements it, so it fails with `no such function: match` (`SMALT_ERROR`), as in SQLite without extensions.
 
 ## BETWEEN
 
@@ -282,7 +282,7 @@ Parameters (`?`, `?NNN`, `:name`, `@name`, `$name`) are described in the [lexica
 | --- | --- |
 | row values: `(a, b) = (1, 2)`, `(a, b) IN (…)` | syntax error: `row values are not supported` |
 | `->`, `->>` | `SMALT_UNSUPPORTED` |
-| `MATCH`, `REGEXP` | `no such function` |
+| `MATCH` | `no such function` |
 | `RAISE(…)` (triggers only in SQLite) | syntax error |
 
 <!-- docs:error SMALT_UNSUPPORTED -->
