@@ -24,6 +24,8 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`abs(X)`](./math#abs) | scalar | Absolute value |
 | [`acos(X)`](./math#sin) | scalar | Arc cosine, in radians |
 | [`acosh(X)`](./math#sinh) | scalar | Inverse hyperbolic cosine |
+| [`arg_max(X, KEY)`](./extensions#first-last) | aggregate | Value at the greatest `KEY` |
+| [`arg_min(X, KEY)`](./extensions#first-last) | aggregate | Value at the least `KEY` |
 | [`asin(X)`](./math#sin) | scalar | Arc sine, in radians |
 | [`asinh(X)`](./math#sinh) | scalar | Inverse hyperbolic sine |
 | [`atan(X)`](./math#sin) | scalar | Arc tangent, in radians |
@@ -62,6 +64,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`ifnull(X, Y)`](./scalar#ifnull) | scalar | `X` if not NULL, else `Y` |
 | [`iif(COND, X, Y)`](./scalar#iif) | scalar | `X` if `COND` is true, else `Y` |
 | [`instr(X, Y)`](./string#instr) | scalar | Position of `Y` in `X` |
+| [`isnan(X)`](./extensions#isnan) | scalar | 1 if `X` is NaN |
 | [`julianday(TIME, MOD, …)`](./datetime#julianday) | scalar | Julian day number |
 | [`kurtosis(X)`](./aggregate#skewness) | aggregate | Sample excess kurtosis |
 | [`kurtosis_pop(X)`](./aggregate#skewness) | aggregate | Population excess kurtosis |
@@ -117,6 +120,9 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`read_csv(LOCATION, …)`](./table-valued#read_csv) | table-valued | Rows of a CSV or TSV file (`@smaltdb/io` plugin) |
 | [`read_json(LOCATION, …)`](./table-valued#read_json) | table-valued | Rows of a JSON or NDJSON file (`@smaltdb/io` plugin) |
 | [`read_parquet(LOCATION, …)`](./table-valued#read_parquet) | table-valued | Rows of a Parquet file (`@smaltdb/parquet` plugin) |
+| [`regexp_like(X, P [, FLAGS])`](./extensions#regexp) | scalar | Whether a regular expression matches |
+| [`regexp_replace(X, P, R [, FLAGS])`](./extensions#regexp) | scalar | Replace the first match, or all with `g` |
+| [`regexp_substr(X, P [, FLAGS])`](./extensions#regexp) | scalar | The first match of a regular expression |
 | [`replace(X, Y, Z)`](./string#replace) | scalar | Replace every `Y` in `X` with `Z` |
 | [`round(X [, DIGITS])`](./math#round) | scalar | Round to `DIGITS` decimal places |
 | [`round_even(X [, DIGITS])`](./extensions#round_even) | scalar | Round with halves to even |
@@ -165,7 +171,7 @@ These SQLite functions are **not** implemented. Each fails with `SMALT_ERROR` `n
 | Group | Functions |
 | --- | --- |
 | JSON | `json`, `jsonb`, `json_array`, `json_array_length`, `json_extract`, `json_insert`, `json_object`, `json_patch`, `json_quote`, `json_remove`, `json_replace`, `json_set`, `json_type`, `json_valid`, `json_group_array`, `json_group_object`, and the table-valued `json_each` and `json_tree`. The `->` and `->>` operators fail with `SMALT_UNSUPPORTED`. |
-| Text | `unhex`, `unistr`, `unistr_quote`, and the function forms `like(…)` and `glob(…)` (the `LIKE` and `GLOB` operators work). `REGEXP` has no implementation. |
+| Text | `unhex`, `unistr`, `unistr_quote`, and the function forms `like(…)` and `glob(…)` (the `LIKE` and `GLOB` operators work). `REGEXP` is a [smaltdb extension](./extensions#regexp). |
 | SQLite-specific | `sqlite_version`, `sqlite_source_id`, `sqlite_compileoption_get`, `sqlite_compileoption_used`, `sqlite_offset`, `load_extension`, `subtype` |
 | Table-valued | `generate_series` (use a recursive CTE; see [SELECT](../sql/select)) |
 

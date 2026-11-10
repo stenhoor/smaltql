@@ -59,10 +59,10 @@ SELECT lower('ÄBC') AS ascii, lower_unicode('ÄBC') AS "unicode", upper_unicode
 
 ## First and last {#first-last}
 
-The aggregates `first(X)` and `last(X)` give the value of a group's first or last row, in the order rows reach the aggregate. `first(X, KEY)` gives `X` at the row with the smallest `KEY`, and `last(X, KEY)` at the largest, skipping rows whose key is NULL.
+The aggregates `first(X)` and `last(X)` give the value of a group's first or last row, in the order rows reach the aggregate. `first(X, KEY)` gives `X` at the row with the smallest `KEY`, and `last(X, KEY)` at the largest, skipping rows whose key is NULL. `arg_min(X, KEY)` and `arg_max(X, KEY)` are the same as `first(X, KEY)` and `last(X, KEY)`.
 
 ```sql
-SELECT first(x) AS first_x, last(x) AS last_x, first(x, k) AS x_at_least_k
+SELECT first(x) AS first_x, last(x) AS last_x, arg_min(x, k) AS x_at_least_k
 FROM (SELECT 'a' AS x, 2 AS k UNION ALL SELECT 'b', 1 UNION ALL SELECT 'c', 3);
 ```
 
@@ -81,3 +81,40 @@ SELECT round(2.5) AS "round", round_even(2.5) AS round_even, round_even(0.125, 2
 | round | round_even | two_places |
 | --- | --- | --- |
 | 3 | 2 | 0.12 |
+
+## Regular expressions {#regexp}
+
+Patterns are JavaScript regular expressions. `FLAGS` may hold `i` (ignore case), `m` and `s`; `regexp_replace` also takes `g`, to replace every match. The replacement may use `$1` and `$&`.
+
+- `X REGEXP P`, `regexp_like(X, P [, FLAGS])`: 1 if `P` matches anywhere in `X`, else 0.
+- `regexp_substr(X, P [, FLAGS])`: the first match, or NULL.
+- `regexp_replace(X, P, R [, FLAGS])`: `X` with the first match, or with `g` every match, replaced by `R`.
+
+```sql
+SELECT 'abc' REGEXP 'b.' AS m, regexp_like('ABC', 'b', 'i') AS i,
+       regexp_substr('x12y34', '[0-9]+') AS first, regexp_replace('a1b2', '[0-9]', '#', 'g') AS every;
+```
+
+| m | i | first | every |
+| --- | --- | --- | --- |
+| 1 | 1 | 12 | a#b# |
+
+## NaN {#isnan}
+
+`isnan(X)` is 1 when `X` is NaN, 0 otherwise, and NULL for NULL. SQL itself gives NULL where IEEE arithmetic gives NaN (`0.0 / 0.0`), but data another language stored can hold NaN, and SQL shows it as NaN.
+
+## IGNORE NULLS {#ignore-nulls}
+
+`IGNORE NULLS` before `OVER` makes `lag`, `lead`, `first_value`, `last_value` and `nth_value` skip rows whose value is NULL. See [window functions](./window#navigation-functions).
+
+```sql
+SELECT i, lag(x) IGNORE NULLS OVER (ORDER BY i) AS prev
+FROM (SELECT 1 AS i, 10 AS x UNION ALL SELECT 2, NULL UNION ALL SELECT 3, 30)
+ORDER BY i;
+```
+
+| i | prev |
+| --- | --- |
+| 1 | NULL |
+| 2 | 10 |
+| 3 | 10 |
