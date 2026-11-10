@@ -237,6 +237,11 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       }
     }
     case 'binary':
+      if (e.op === '=' && e.right.kind === 'call' && e.right.name === 'any' && e.right.args.length === 1 && !e.right.over) {
+        // `v = ANY (list)` (Postgres; smaltdb ADR 0022): whether an element of the list equals v.
+        const l = listArg(bindExpr(e.right.args[0]!, scope));
+        return call('cast_integer', [call('list_contains', [l, bindExpr(e.left, scope)], 'int')], 'int');
+      }
       return bindBinary(e.op, bindExpr(e.left, scope), bindExpr(e.right, scope));
     case 'between': {
       const x = bindExpr(e.expr, scope);
@@ -389,7 +394,8 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
       throw new SmaltError('SMALT_ERROR', 'second argument to likelihood() must be a constant between 0.0 and 1.0');
   }
   // The engine's date and list functions take the values under SQL's text (smaltdb ADR 0022, step 1).
-  const typed = TYPED_ARGS.has(name) || name.startsWith('list_') || name.startsWith('struct_');
+  const engine = engineName(name) ?? name;
+  const typed = TYPED_ARGS.has(engine) || engine.startsWith('list_') || engine.startsWith('struct_');
   const args = e.args.map((a) => {
     const b = bindExpr(a, scope);
     return typed ? (temporalUnder(b) ?? nestedUnder(b) ?? b) : b;
@@ -443,6 +449,21 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       }
       return withMeaning(call('regex_replace', b, 'text'), plain);
     }
+    case 'list_extract': {
+      // From 1, negative from the end, as DuckDB; 0 is NULL. The engine's list_get counts from 0.
+      arity(2, 2);
+      const [l, i] = [listArg(bindExpr(args[0]!, scope)), bindExpr(args[1]!, scope)];
+      const index: BoundExpr = { k: 'case', whens: [{ when: call('cmp_gt', [i, lit(0, 'int')], 'int'), then: call('sub', [i, lit(1, 'int')], 'int') }, { when: call('cmp_lt', [i, lit(0, 'int')], 'int'), then: i }], else: lit(null, 'null'), type: 'int' };
+      return withMeaning(sqlValue(call('list_get', [l, index], elementType(typeOf(l))), undefined), plain);
+    }
+    case 'array_slice': {
+      // DuckDB: elements FROM to TO, both from 1 and included. The engine's list_slice takes an offset from 0 and a length.
+      arity(3, 3);
+      const [l, from, to] = [listArg(bindExpr(args[0]!, scope)), bindExpr(args[1]!, scope), bindExpr(args[2]!, scope)];
+      const offset = call('sub', [from, lit(1, 'int')], 'int');
+      const length = call('add', [call('sub', [to, from], 'int'), lit(1, 'int')], 'int');
+      return withMeaning(sqlValue(call('list_slice', [l, offset, length], typeOf(l)), undefined), plain);
+    }
     case 'isnan': {
       arity(1, 1);
       return withMeaning(call('cast_integer', [call('cmp_eq', [bindExpr(args[0]!, scope), lit(Number.NaN, 'real')], 'int')], 'int'), plain);
@@ -451,6 +472,16 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       return undefined;
   }
 }
+
+/** A list argument: the value under SQL's text of it. */
+function listArg(b: BoundExpr): BoundExpr {
+  const l = nestedUnder(b) ?? b;
+  if (!typeOf(l).startsWith('list<')) throw new SmaltError('SMALT_MISMATCH', 'expected a list');
+  return l;
+}
+
+/** The element type of `list<T>`. */
+const elementType = (t: StaticType): StaticType => t.slice(5, -1) as StaticType;
 
 /** Functions whose arguments are the engine's dates and times, not SQL's text of them. */
 const TYPED_ARGS = new Set([

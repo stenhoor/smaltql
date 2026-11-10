@@ -10,7 +10,7 @@ Every function smaltdb accepts, in alphabetical order. Names are case-insensitiv
 | [Date and time functions](./datetime) | `date`, `time`, `datetime`, `julianday`, `unixepoch`, `strftime`, `timediff`, `CURRENT_*`; time values, modifiers and format codes |
 | [Aggregate functions](./aggregate) | `count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, `string_agg`; statistics: `stddev`, `variance`, `corr`, `median`, `percentile`, …; `DISTINCT` and `FILTER` |
 | [Window functions](./window) | Ranking and navigation functions, aggregates over windows, `OVER` syntax |
-| [smaltdb extensions](./extensions) | Functions SQLite doesn't have: `make_date`, time zones, list reductions, Unicode case, `first` / `last`, `round_even` |
+| [smaltdb extensions](./extensions) | Functions SQLite doesn't have: `make_date`, time zones, lists, Unicode case, `first` / `last`, `round_even` |
 | [Table-valued functions](./table-valued) | `read_csv`, `read_json`, `read_parquet` (from [plugins](../../guide/plugins)), `pragma_*` |
 
 Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are not functions; see [Expressions](../sql/expressions).
@@ -26,12 +26,22 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`acosh(X)`](./math#sinh) | scalar | Inverse hyperbolic cosine |
 | [`arg_max(X, KEY)`](./extensions#first-last) | aggregate | Value at the greatest `KEY` |
 | [`arg_min(X, KEY)`](./extensions#first-last) | aggregate | Value at the least `KEY` |
+| [`array_agg(X)`](./extensions#lists) | aggregate | A group's values as a list |
+| [`array_cat(A, B)`](./extensions#lists) | scalar | Two lists joined |
+| [`array_contains(L, V)`](./extensions#lists) | scalar | 1 if an element equals `V` |
+| [`array_distinct(L)`](./extensions#lists) | scalar | A list without repeats |
+| [`array_length(L)`](./extensions#lists) | scalar | Same as `cardinality` |
+| [`array_reverse(L)`](./extensions#lists) | scalar | A list reversed |
+| [`array_slice(L, FROM, TO)`](./extensions#lists) | scalar | Part of a list, from 1 |
+| [`array_sort(L)`](./extensions#lists) | scalar | A list sorted |
+| [`array_to_string(L, SEP)`](./extensions#lists) | scalar | A list's elements as text |
 | [`asin(X)`](./math#sin) | scalar | Arc sine, in radians |
 | [`asinh(X)`](./math#sinh) | scalar | Inverse hyperbolic sine |
 | [`atan(X)`](./math#sin) | scalar | Arc tangent, in radians |
 | [`atan2(Y, X)`](./math#sin) | scalar | Angle of the point (`X`, `Y`), in radians |
 | [`atanh(X)`](./math#sinh) | scalar | Inverse hyperbolic tangent |
 | [`avg(X)`](./aggregate#avg) | aggregate | Average of non-NULL values |
+| [`cardinality(L)`](./extensions#lists) | scalar | Number of elements in a list |
 | [`ceil(X)`, `ceiling(X)`](./math#ceil) | scalar | Round up |
 | [`changes()`](./scalar#changes) | scalar | Rows changed by the last INSERT, UPDATE or DELETE |
 | [`char(X, …)`](./string#char) | scalar | String from Unicode code points |
@@ -76,6 +86,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`length(X)`](./string#length) | scalar | Characters in text, bytes in a blob |
 | [`likelihood(X, P)`](./scalar#likelihood) | scalar | Returns `X` (planner hint, ignored) |
 | [`likely(X)`](./scalar#likely) | scalar | Returns `X` (planner hint, ignored) |
+| [`list_extract(L, I)`](./extensions#lists) | scalar | Element of a list, from 1 |
 | [`list_max(L)`](./extensions#lists) | scalar | Greatest number in a list |
 | [`list_mean(L)`](./extensions#lists) | scalar | Mean of a list |
 | [`list_min(L)`](./extensions#lists) | scalar | Least number in a list |

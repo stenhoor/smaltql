@@ -133,6 +133,7 @@ export function tokenize(src: string): Tokens {
   const vals: TokenValue[] = [];
   const kws: string[] = [];
   let i = 0;
+  let arrayDepth = 0;
   while (i < n) {
     const c = src.charCodeAt(i);
     if (c < 0x80 && (CC[c] & CC_SPACE) !== 0) {
@@ -240,6 +241,14 @@ export function tokenize(src: string): Tokens {
           break;
         }
         case 0x5b: {
+          // `ARRAY[` (Postgres; smaltdb ADR 0022): a list's elements follow, up to the matching `]`. Anywhere else `[id]`.
+          const last = kinds.length - 1;
+          if (last >= 0 && ends[last] === start && kinds[last] === TK_ID && String(vals[last]).toUpperCase() === 'ARRAY') {
+            arrayDepth++;
+            val = '[';
+            i++;
+            break;
+          }
           // [id]
           const close = src.indexOf(']', i + 1);
           if (close < 0) {
@@ -399,6 +408,17 @@ export function tokenize(src: string): Tokens {
           }
           break;
         }
+        case 0x5d:
+          if (arrayDepth > 0) {
+            arrayDepth--;
+            val = ']';
+            i++;
+            break;
+          }
+          kind = TK_ILLEGAL;
+          val = `unrecognized token: "${src[i]}"`;
+          i++;
+          break;
         default:
           kind = TK_ILLEGAL;
           val = `unrecognized token: "${src[i]}"`;
