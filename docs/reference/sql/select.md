@@ -62,7 +62,7 @@ Every table also has the hidden column `rowid` (also `oid` and `_rowid_`), unles
 
 ### Tables, subqueries and functions
 
-A table name may be qualified with `main` or `temp`. A subquery in parentheses can be used like a table. Table-valued functions such as `pragma_table_info('t')`, `read_csv('file:x.csv')` and `read_json(…)` take positional arguments followed by named ones (`name => value`); see [table-valued functions](../functions/table-valued).
+A table name may be qualified with `main` or `temp`. A subquery in parentheses can be used like a table. Table-valued functions such as `pragma_table_info('t')`, `read_csv('file:x.csv')` and `read_json(…)` take positional arguments followed by named ones (`name => value`); see [table-valued functions](../functions/table-valued/).
 
 ```sql
 SELECT d.name, s.total
@@ -139,7 +139,7 @@ SELECT name FROM emp WHERE salary BETWEEN 65 AND 90 AND name LIKE '%o%'
 
 ## GROUP BY and HAVING
 
-`GROUP BY` puts rows with equal values (NULLs equal) in one group and computes [aggregate functions](../functions/aggregate) per group. A group term can also be a result column's alias or its position (`GROUP BY 1`). `HAVING` filters groups. Without `GROUP BY`, an aggregate query returns exactly one row.
+`GROUP BY` puts rows with equal values (NULLs equal) in one group and computes [aggregate functions](../functions/aggregate/) per group. A group term can also be a result column's alias or its position (`GROUP BY 1`). `HAVING` filters groups. Without `GROUP BY`, an aggregate query returns exactly one row.
 
 ```sql
 SELECT dept_id, count(*) AS n, sum(salary) AS total, avg(salary) AS avg
@@ -178,7 +178,7 @@ SELECT name, max(salary) FROM emp
 
 ## WINDOW and OVER
 
-A [window function](../functions/window) call has an `OVER` clause. Named windows are defined in the `WINDOW` clause, and a window specification may start from a named one.
+A [window function](../functions/window/) call has an `OVER` clause. Named windows are defined in the `WINDOW` clause, and a window specification may start from a named one.
 
 ```railroad
 function-call

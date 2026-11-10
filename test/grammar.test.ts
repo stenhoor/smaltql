@@ -4,10 +4,11 @@
  * shows a form smaltql can't read. (It checks the parse only: a statement can still fail to bind, as `SELECT nope`
  * does.)
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseEbnf, type Node } from '../docs/.vitepress/theme/railroad';
+import { parseEbnf, type Grammar, type Node } from '../docs/.vitepress/theme/railroad';
 import { parse } from '../src/parser.js';
+import { Database } from 'smaltdb/engine';
 
 const grammar = parseEbnf(readFileSync(new URL('../docs/grammar.ebnf', import.meta.url), 'utf8'));
 
@@ -29,86 +30,97 @@ function rng(seed: number): () => number {
   };
 }
 
-/** The fewest tokens each rule can produce, to end recursion. */
-const cost = new Map<string, number>();
-function minCost(n: Node): number {
-  switch (n.t) {
-    case 'term':
-      return 1;
-    case 'ref':
-      return TOKENS[n.name] ? 1 : (cost.get(n.name) ?? 1e6);
-    case 'seq':
-      return n.items.reduce((a, i) => a + minCost(i), 0);
-    case 'choice':
-      return Math.min(...n.items.map(minCost));
-    case 'opt':
-    case 'skip':
-      return 0;
-    case 'rep':
-      return minCost(n.item);
-  }
-}
-for (let changed = true; changed; ) {
-  changed = false;
-  for (const [name, rule] of grammar.rules) {
-    const c = minCost(rule);
-    if (c < (cost.get(name) ?? 1e6)) {
-      cost.set(name, c);
-      changed = true;
-    }
-  }
-}
+// A function page's diagram names its arguments in capitals (`X`, `SEP`, `KEY`): any expression.
+const ARGUMENT = /^[A-Z][A-Z0-9_]*$/;
+const ARGUMENTS = ['x', '1', "'a'"];
 
-const ATOMIC_EXPR = 2; // alternatives of expr before this index are atoms; the rest are wrapped in parentheses
-
-function generate(name: string, random: () => number, depth = 0): string {
-  if (TOKENS[name]) return TOKENS[name][Math.floor(random() * TOKENS[name].length)];
-  const rule = grammar.rules.get(name);
-  if (!rule) throw new Error(`no rule ${name}`);
-  const deep = depth > 4;
-  const out: string[] = [];
-  const walk = (n: Node, top: boolean): void => {
+/** A generator of random sentences of a grammar. */
+function generator(grammar: Grammar): (name: string, random: () => number) => string {
+  /** The fewest tokens each rule can produce, to end recursion. */
+  const cost = new Map<string, number>();
+  const minCost = (n: Node): number => {
     switch (n.t) {
       case 'term':
-        out.push(n.text);
-        return;
+        return 1;
       case 'ref':
-        out.push(generate(n.name, random, depth + 1));
-        return;
+        return TOKENS[n.name] || ARGUMENT.test(n.name) ? 1 : (cost.get(n.name) ?? 1e6);
       case 'seq':
-        n.items.forEach((i) => walk(i, false));
-        return;
-      case 'choice': {
-        const pick = deep ? n.items.reduce((best, i) => (minCost(i) < minCost(best) ? i : best)) : n.items[Math.floor(random() * n.items.length)];
-        const index = n.items.indexOf(pick);
-        // An expression built from smaller ones is wrapped in parentheses, so where it sits never changes how it
-        // parses (precedence is the operators' table, not the grammar's).
-        if (name === 'expr' && top && index >= ATOMIC_EXPR && depth > 0) {
-          out.push('(');
-          walk(pick, false);
-          out.push(')');
-        } else walk(pick, false);
-        return;
-      }
+        return n.items.reduce((a, i) => a + minCost(i), 0);
+      case 'choice':
+        return Math.min(...n.items.map(minCost));
       case 'opt':
-        if (!deep && random() < 0.4) walk(n.item, false);
-        return;
-      case 'rep': {
-        const times = deep ? 1 : 1 + Math.floor(random() * 3);
-        for (let i = 0; i < times; i++) {
-          if (i && n.sep) walk(n.sep, false);
-          walk(n.item, false);
-        }
-        return;
-      }
       case 'skip':
-        return;
+        return 0;
+      case 'rep':
+        return minCost(n.item);
     }
   };
-  walk(rule, true);
-  // `ARRAY[` is one token pair: with a space, `[` starts a bracket-quoted name, as in SQLite.
-  return out.join(' ').replace(/\bARRAY \[/g, 'ARRAY[');
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [name, rule] of grammar.rules) {
+      const c = minCost(rule);
+      if (c < (cost.get(name) ?? 1e6)) {
+        cost.set(name, c);
+        changed = true;
+      }
+    }
+  }
+
+  const ATOMIC_EXPR = 2; // alternatives of expr before this index are atoms; the rest are wrapped in parentheses
+
+  function generate(name: string, random: () => number, depth = 0): string {
+    if (TOKENS[name]) return TOKENS[name][Math.floor(random() * TOKENS[name].length)];
+    const rule = grammar.rules.get(name);
+    if (!rule && ARGUMENT.test(name)) return ARGUMENTS[Math.floor(random() * ARGUMENTS.length)];
+    if (!rule) throw new Error(`no rule ${name}`);
+    const deep = depth > 4;
+    const out: string[] = [];
+    const walk = (n: Node, top: boolean): void => {
+      switch (n.t) {
+        case 'term':
+          out.push(n.text);
+          return;
+        case 'ref':
+          out.push(generate(n.name, random, depth + 1));
+          return;
+        case 'seq':
+          n.items.forEach((i) => walk(i, false));
+          return;
+        case 'choice': {
+          const pick = deep ? n.items.reduce((best, i) => (minCost(i) < minCost(best) ? i : best)) : n.items[Math.floor(random() * n.items.length)];
+          const index = n.items.indexOf(pick);
+          // An expression built from smaller ones is wrapped in parentheses, so where it sits never changes how it
+          // parses (precedence is the operators' table, not the grammar's).
+          if (name === 'expr' && top && index >= ATOMIC_EXPR && depth > 0) {
+            out.push('(');
+            walk(pick, false);
+            out.push(')');
+          } else walk(pick, false);
+          return;
+        }
+        case 'opt':
+          if (!deep && random() < 0.4) walk(n.item, false);
+          return;
+        case 'rep': {
+          const times = deep ? 1 : 1 + Math.floor(random() * 3);
+          for (let i = 0; i < times; i++) {
+            if (i && n.sep) walk(n.sep, false);
+            walk(n.item, false);
+          }
+          return;
+        }
+        case 'skip':
+          return;
+      }
+    };
+    walk(rule, true);
+    // `ARRAY[` is one token pair: with a space, `[` starts a bracket-quoted name, as in SQLite.
+    return out.join(' ').replace(/\bARRAY \[/g, 'ARRAY[');
+  }
+  return generate;
 }
+
+const generate = generator(grammar);
 
 describe('docs/grammar.ebnf', () => {
   it('defines every rule it uses, but the tokens', () => {
@@ -138,5 +150,60 @@ describe('docs/grammar.ebnf', () => {
     // The shortest few say most about which rule is wrong.
     rejected.sort((a, b) => a.length - b.length);
     expect(rejected.slice(0, 3), `${rule}: statements the grammar produces and the parser rejects`).toEqual([]);
+  });
+});
+
+/**
+ * Each function page draws its function from an ```ebnf block, beside the site's grammar. Random calls derived from
+ * it must parse too: in a SELECT list, or in FROM for a table-valued function.
+ */
+describe('function pages', () => {
+  const root = new URL('../docs/reference/functions/', import.meta.url);
+  const pages = readdirSync(root, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .flatMap((d) =>
+      readdirSync(new URL(`${d.name}/`, root))
+        .filter((f) => f.endsWith('.md') && f !== 'index.md')
+        .map((f) => `${d.name}/${f.slice(0, -3)}`),
+    );
+  const site = readFileSync(new URL('../docs/grammar.ebnf', import.meta.url), 'utf8');
+
+  it('have pages', () => expect(pages.length).toBeGreaterThan(150));
+
+  it.each(pages)('%s: every call its diagram can produce, smaltql reads and the engine takes', async (page) => {
+    const md = readFileSync(new URL(`${page}.md`, root), 'utf8');
+    const blocks = [...md.matchAll(/^```ebnf\n([\s\S]*?)^```/gm)].map((m) => m[1]);
+    expect(blocks, `${page}: one ebnf block`).toHaveLength(1);
+    const name = page.split('/')[1];
+    expect([...parseEbnf(blocks[0]).rules.keys()], `${page}: its rule is named after the page`).toEqual([name]);
+    // Parsed together, so a rule name the page shares with the site's grammar is an error.
+    const generate = generator(parseEbnf(`${site}\n${blocks[0]}`));
+    const random = rng(name.length * 7919);
+    const rejected: string[] = [];
+    // The engine checks the calls' arity (the parser takes any number of arguments). Other errors, such as an
+    // argument of the wrong type, are the function's to give, so only these two count here, and only for the names
+    // the page's rule spells (the expressions derived inside a window may call made-up ones).
+    const own = new Set(blocks[0].match(/'[A-Za-z_][A-Za-z0-9_]*'/g)!.map((t) => t.slice(1, -1).toLowerCase()));
+    const db = Database.openMemory({});
+    await db.execAsync('CREATE TABLE t(x)');
+    for (let i = 0; i < 100; i++) {
+      const call = generate(name, random);
+      const sql = /^SELECT\b/.test(call) ? call : page.startsWith('table-valued/') ? `SELECT * FROM ${call}` : `SELECT ${call} FROM t`;
+      try {
+        parse(sql);
+      } catch (e) {
+        rejected.push(`${sql}\n    → ${(e as Error).message}`);
+        continue;
+      }
+      if (page.startsWith('table-valued/')) continue; // they read files and tables the test doesn't have
+      try {
+        await db.queryAsync(sql);
+      } catch (e) {
+        const m = /(?:wrong number of arguments to function |no such function: )(\w+)/.exec((e as Error).message);
+        if (m && own.has(m[1].toLowerCase())) rejected.push(`${sql}\n    → ${(e as Error).message}`);
+      }
+    }
+    rejected.sort((a, b) => a.length - b.length);
+    expect(rejected.slice(0, 3), `${page}: calls the diagram produces and the parser rejects`).toEqual([]);
   });
 });

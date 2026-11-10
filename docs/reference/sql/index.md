@@ -52,7 +52,7 @@ SELECT 1 /* inline */ + 1 AS two -- trailing comment
 | Blob | `x'CAFE'`, `X'00ff'` | BLOB; an even number of hex digits |
 | `NULL` | `NULL` | NULL |
 | `TRUE`, `FALSE` | `TRUE` | the integers 1 and 0 |
-| `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP` | | the current UTC date and time as text (see [date and time functions](../functions/datetime)) |
+| `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP` | | the current UTC date and time as text (see [`CURRENT_TIMESTAMP`](../functions/datetime/current_timestamp)) |
 
 ```sql
 SELECT 42 AS i, 0x1F AS hex, 1e3 AS r, 'it''s' AS s, x'CAFE' AS b, TRUE AS t, typeof(1.0) AS ty

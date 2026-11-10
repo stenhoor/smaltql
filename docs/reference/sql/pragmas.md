@@ -219,7 +219,7 @@ SELECT * FROM metric
 
 ## Schema pragmas
 
-Each of these also exists as a table-valued function named `pragma_<name>(arg)`, which can be filtered and joined like a table (see [table-valued functions](../functions/table-valued)). For an unknown table, the `PRAGMA` form fails with `no such table: x`, while the function form returns no rows.
+Each of these also exists as a table-valued function named `pragma_<name>(arg)`, which can be filtered and joined like a table (see [table-valued functions](../functions/table-valued/)). For an unknown table, the `PRAGMA` form fails with `no such table: x`, while the function form returns no rows.
 
 ```sql
 CREATE TABLE parent(id INTEGER PRIMARY KEY, code TEXT NOT NULL DEFAULT 'x' COLLATE NOCASE, UNIQUE(code));

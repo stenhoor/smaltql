@@ -143,7 +143,7 @@ SELECT on_, typeof(on_) AS t FROM flag
 
 ## Dates and times
 
-There is no date type. Store dates as TEXT in ISO 8601 form (`'2024-03-01'`, `'2024-03-01 14:30:00'`), which sorts correctly and is what the [date and time functions](../functions/datetime) read and write, or as INTEGER Unix time or REAL Julian day numbers. Declare the column `TEXT`: a `DATE` column has NUMERIC type, which would turn a value such as `'2024'` into the integer 2024.
+There is no date type. Store dates as TEXT in ISO 8601 form (`'2024-03-01'`, `'2024-03-01 14:30:00'`), which sorts correctly and is what the [date and time functions](../functions/datetime/) read and write, or as INTEGER Unix time or REAL Julian day numbers. Declare the column `TEXT`: a `DATE` column has NUMERIC type, which would turn a value such as `'2024'` into the integer 2024.
 
 ```sql
 CREATE TABLE ev(d TEXT, n DATE);
@@ -158,7 +158,7 @@ SELECT d, typeof(d) AS td, n, typeof(n) AS tn, date(d, '+1 month') AS next FROM 
 JavaScript `Date` objects are not accepted as parameters; pass `date.toISOString()` or a number.
 
 A table another language defines, or a Parquet file, can have date and time columns of the engine's own types. SQL
-reads them as their text: see [date and time columns](../functions/datetime#columns).
+reads them as their text: see [date and time columns](../functions/datetime/#columns).
 
 ## Lists and structs
 

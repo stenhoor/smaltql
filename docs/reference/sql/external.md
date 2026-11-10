@@ -10,7 +10,7 @@ An external table is a catalog entry for data that lives outside the database: a
 
 External data comes from [plugins](../../guide/plugins). `@smaltdb/external` provides the sources (registered files, URLs, S3, Azure, local paths in Node) and the connection types `http`, `s3` and `azure`. `@smaltdb/io` provides the CSV, TSV and JSON formats, and `@smaltdb/parquet` the Parquet format. Install them in the engine worker entry (`defineWorker({ languages: [sqlLanguage], plugins: [io, external, parquet] })`, started with `worker: () => new Worker(new URL('./db-worker.ts', import.meta.url), { type: 'module' })`), or in Node with `Database.openMemory({ plugins: [io, external, parquet] })`. A statement that needs a missing plugin fails with `SMALT_PLUGIN_MISSING`. Tables and connections created with a plugin stay in the catalog without it.
 
-This page is the syntax reference. For a walk-through, registering files and credentials, patterns, partitions and caching, see [External data](../../guide/external-data). To read a file once without a catalog entry, use [`read_csv`, `read_json` and `read_parquet`](../functions/table-valued).
+This page is the syntax reference. For a walk-through, registering files and credentials, patterns, partitions and caching, see [External data](../../guide/external-data). To read a file once without a catalog entry, use [`read_csv`, `read_json` and `read_parquet`](../functions/table-valued/read_csv).
 
 ## CREATE CONNECTION
 

@@ -61,7 +61,7 @@ The error is `cannot store TEXT value in REAL column project.budget`. The rules 
 Some common cases:
 
 - **Booleans**: use `INTEGER` with `CHECK (col IN (0, 1))`. `TRUE`/`FALSE` and JavaScript booleans are stored as 1 and 0.
-- **Dates and times**: use `TEXT` with ISO 8601 values (`'2024-03-01'`, `'2024-03-01 14:30:00'`); they sort correctly and work with the [date functions](../reference/functions/datetime). Or use `INTEGER` for Unix timestamps.
+- **Dates and times**: use `TEXT` with ISO 8601 values (`'2024-03-01'`, `'2024-03-01 14:30:00'`); they sort correctly and work with the [date functions](../reference/functions/datetime/). Or use `INTEGER` for Unix timestamps.
 - **Money**: there is no decimal type. Store cents in an `INTEGER` column to stay exact.
 - **JSON**: store it in a `TEXT` column.
 

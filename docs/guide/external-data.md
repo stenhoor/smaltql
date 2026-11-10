@@ -16,7 +16,7 @@ There are three ways to use it:
 | `CREATE EXTERNAL TABLE` | A source you query regularly: its location, format and columns are stored under a name. |
 | A materialized view over either | A local copy: fast repeat reads and offline use, refreshed when the source changes. |
 
-Reference pages: [CREATE CONNECTION and CREATE EXTERNAL TABLE](../reference/sql/external), [table-valued functions](../reference/functions/table-valued), [plugins](./plugins), [error codes](https://smaltdb.dev/reference/api/errors).
+Reference pages: [CREATE CONNECTION and CREATE EXTERNAL TABLE](../reference/sql/external), [table-valued functions](../reference/functions/table-valued/), [plugins](./plugins), [error codes](https://smaltdb.dev/reference/api/errors).
 
 The runnable examples on this page read small files from the documentation's `docs/examples/` folder, registered under their file names (`file:ext-products.csv` and so on).
 
