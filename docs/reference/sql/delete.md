@@ -4,11 +4,8 @@
 
 ## Syntax
 
-```text
-[WITH [RECURSIVE] cte [, ...]]
-DELETE FROM [schema.]table [AS alias] [INDEXED BY index | NOT INDEXED]
-  [WHERE condition]
-  [RETURNING result-column [, ...]]
+```railroad
+delete-stmt
 ```
 
 Every row for which `WHERE` is true is deleted; without `WHERE`, every row. Foreign-key actions (`ON DELETE CASCADE`, `SET NULL`, …) run for each deleted row; see [CREATE TABLE](./create-table#foreign-keys).

@@ -4,8 +4,8 @@ A view is a named query. A materialized view stores the query's result as rows a
 
 ## CREATE VIEW
 
-```text
-CREATE [TEMP | TEMPORARY] VIEW [IF NOT EXISTS] [schema.]name [(column [, ...])] AS select
+```railroad
+create-view-stmt
 ```
 
 A view is read like a table. Its query runs every time the view is used. The column list, if given, renames the query's columns and must match their number (otherwise reading the view fails with `expected 2 columns for 'v' but got 1`).
@@ -38,11 +38,8 @@ See [DROP](./drop).
 
 ## CREATE MATERIALIZED VIEW
 
-```text
-CREATE MATERIALIZED VIEW [IF NOT EXISTS] [main.]name [(column [, ...])]
-  [WITH (option = value [, ...])]
-  AS select
-  [WITH DATA | WITH NO DATA]
+```railroad
+create-materialized-view-stmt
 ```
 
 The query runs once when the view is created (unless `WITH NO DATA`), and its rows are stored like a table's. Reading the view reads the stored rows, which stay as they are until the next [`REFRESH`](#refresh-materialized-view).
@@ -127,8 +124,8 @@ SELECT table_name, is_fresh FROM information_schema.materialized_views WHERE tab
 
 ## REFRESH MATERIALIZED VIEW
 
-```text
-REFRESH MATERIALIZED VIEW [CONCURRENTLY] [main.]name [CONCURRENTLY] [IF CHANGED] [WITH DATA | WITH NO DATA]
+```railroad
+refresh-stmt
 ```
 
 Runs the view's query again and replaces the stored rows. The new rows are built next to the old ones and swapped in, so readers never see a half-done refresh and a failed refresh leaves the old rows.

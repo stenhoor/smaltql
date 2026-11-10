@@ -4,41 +4,11 @@
 
 ## Syntax
 
-```text
-[WITH [RECURSIVE] cte [, cte ...]]
+```railroad
+select-stmt
 select-core
-  [{UNION | UNION ALL | INTERSECT | EXCEPT} select-core ...]
-[ORDER BY ordering-term [, ...]]
-[LIMIT count [OFFSET skip] | LIMIT skip, count]
-
-select-core:
-    SELECT [DISTINCT | ALL] result-column [, ...]
-      [FROM from-item]
-      [WHERE condition]
-      [GROUP BY expr [, ...]]
-      [HAVING condition]
-      [WINDOW name AS (window-spec) [, ...]]
-  | VALUES (expr [, ...]) [, (expr [, ...]) ...]
-
-result-column:
-    *  |  table.*  |  expr [[AS] alias]
-
-from-item:
-    [schema.]table [[AS] alias] [INDEXED BY index | NOT INDEXED]
-  | [schema.]function(arg [, ...] [, name => value ...]) [[AS] alias]
-  | (select) [[AS] alias]
-  | (from-item)
-  | from-item join-operator from-item [ON condition | USING (column [, ...])]
-  | from-item, from-item
-
-join-operator:
-    [NATURAL] [INNER | CROSS | LEFT [OUTER] | RIGHT [OUTER] | FULL [OUTER]] JOIN
-
-cte:
-    name [(column [, ...])] AS [[NOT] MATERIALIZED] (select)
-
-ordering-term:
-    expr [COLLATE collation] [ASC | DESC] [NULLS FIRST | NULLS LAST]
+from-clause
+from-item
 ```
 
 The examples on this page use these tables:
@@ -210,19 +180,10 @@ SELECT name, max(salary) FROM emp
 
 A [window function](../functions/window) call has an `OVER` clause. Named windows are defined in the `WINDOW` clause, and a window specification may start from a named one.
 
-```text
-function(args) [FILTER (WHERE cond)] OVER (window-spec)
-function(args) [FILTER (WHERE cond)] OVER window-name
-
-window-spec:
-  [base-window-name]
-  [PARTITION BY expr [, ...]]
-  [ORDER BY ordering-term [, ...]]
-  [{ROWS | RANGE | GROUPS} {frame-bound | BETWEEN frame-bound AND frame-bound}
-     [EXCLUDE {NO OTHERS | CURRENT ROW | GROUP | TIES}]]
-
-frame-bound:
-  UNBOUNDED PRECEDING | expr PRECEDING | CURRENT ROW | expr FOLLOWING | UNBOUNDED FOLLOWING
+```railroad
+function-call
+window-spec
+frame-spec
 ```
 
 ```sql

@@ -4,13 +4,12 @@ Statements that group changes so they take effect together or not at all. For tr
 
 ## Syntax
 
-```text
-BEGIN [DEFERRED | IMMEDIATE | EXCLUSIVE] [TRANSACTION [name]]
-COMMIT [TRANSACTION [name]]
-END [TRANSACTION [name]]
-ROLLBACK [TRANSACTION [name]] [TO [SAVEPOINT] savepoint-name]
-SAVEPOINT savepoint-name
-RELEASE [SAVEPOINT] savepoint-name
+```railroad
+begin-stmt
+commit-stmt
+rollback-stmt
+savepoint-stmt
+release-stmt
 ```
 
 ## Autocommit

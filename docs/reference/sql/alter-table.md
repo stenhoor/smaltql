@@ -4,12 +4,8 @@
 
 ## Syntax
 
-```text
-ALTER TABLE [main.]table
-  { RENAME TO new-name
-  | RENAME [COLUMN] column TO new-name
-  | ADD [COLUMN] column-def
-  | DROP [COLUMN] column }
+```railroad
+alter-table-stmt
 ```
 
 The examples use these objects:

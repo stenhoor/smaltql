@@ -4,28 +4,13 @@ Expressions compute values in result columns, `WHERE`, `ORDER BY`, `SET`, `CHECK
 
 ## Syntax
 
-```text
-expr:
-    literal | column | table.column | schema.table.column | parameter
-  | unary-op expr | expr binary-op expr
-  | expr [NOT] {LIKE | GLOB} expr [ESCAPE expr]
-  | expr [NOT] BETWEEN expr AND expr
-  | expr [NOT] IN (expr [, ...]) | expr [NOT] IN (select) | expr [NOT] IN [schema.]table
-  | expr IS [NOT] expr | expr IS [NOT] DISTINCT FROM expr
-  | expr ISNULL | expr NOTNULL | expr NOT NULL
-  | [NOT] EXISTS (select) | (select)
-  | CASE [expr] WHEN expr THEN expr [...] [ELSE expr] END
-  | CAST (expr AS type-name)
-  | expr COLLATE collation
-  | function(args) [FILTER (WHERE expr)] [OVER window]
-  | (expr)
-  | expr [NOT] REGEXP expr                          -- smaltdb extensions:
-  | ARRAY[expr [, ...]] | expr = ANY (expr)
-  | (expr).field
-  | {DATE | TIME | TIMESTAMP} 'text' | expr {+ | -} INTERVAL 'text'
+```railroad
+expr
+literal-value
+function-call
 ```
 
-The forms after `(expr)` are [smaltdb extensions](#smaltdb-extensions).
+`REGEXP`, `ARRAY[…]`, `= ANY`, `(expr).field`, the typed literals and `INTERVAL` are [smaltdb extensions](#smaltdb-extensions). The diagram shows which forms exist, not how they bind: that is the [operator precedence](#operator-precedence) below.
 
 ## Operator precedence
 

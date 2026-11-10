@@ -4,10 +4,8 @@
 
 ## Syntax
 
-```text
-PRAGMA [schema.]name
-PRAGMA [schema.]name = value
-PRAGMA [schema.]name(value)
+```railroad
+pragma-stmt
 ```
 
 The value is a number, a string, or a bare word (`ON`, `wal`, a table name). The schema prefix (`main.`) is accepted and ignored. Names are matched without regard to case.

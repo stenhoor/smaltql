@@ -4,16 +4,8 @@
 
 ## Syntax
 
-```text
-[WITH [RECURSIVE] cte [, ...]]
-UPDATE [OR conflict-action] [schema.]table [AS alias] [INDEXED BY index | NOT INDEXED]
-  SET column = expr [, column = expr ...]
-  [FROM from-item]
-  [WHERE condition]
-  [RETURNING result-column [, ...]]
-
-conflict-action:
-  ABORT | FAIL | IGNORE | REPLACE | ROLLBACK
+```railroad
+update-stmt
 ```
 
 Every row for which `WHERE` is true is changed; without `WHERE`, every row. The expressions on the right of `SET` see the row's old values, so `SET a = b, b = a` swaps two columns. New values are converted to the column types as for [INSERT](./insert) and checked against the table's constraints.

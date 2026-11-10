@@ -4,20 +4,9 @@
 
 ## Syntax
 
-```text
-[WITH [RECURSIVE] cte [, ...]]
-{INSERT [OR conflict-action] | REPLACE} INTO [schema.]table [AS alias] [(column [, ...])]
-  {VALUES (expr [, ...]) [, ...] | select | DEFAULT VALUES}
-  [upsert-clause ...]
-  [RETURNING result-column [, ...]]
-
-conflict-action:
-  ABORT | FAIL | IGNORE | REPLACE | ROLLBACK
-
-upsert-clause:
-  ON CONFLICT [(indexed-column [, ...])]
-    DO NOTHING
-  | DO UPDATE SET {column | (column [, ...])} = expr [, ...] [WHERE condition]
+```railroad
+insert-stmt
+upsert-clause
 ```
 
 The examples use this table:

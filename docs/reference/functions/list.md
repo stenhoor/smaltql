@@ -43,7 +43,8 @@ ARRAY[X, Y, …]
 ARRAY[]
 ```
 
-A list of the values, in order.
+A list of the values, in order. Write `ARRAY[` with no space: with one, `[` starts a bracket-quoted name, as in SQLite,
+so `ARRAY [1]` is not a list.
 
 - **Arguments:** any number of values, including none.
 - **Returns:** a list, shown as JSON text.

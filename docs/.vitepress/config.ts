@@ -3,7 +3,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { smaltLight, smaltDark } from './theme/shiki'
 import { smaltworksMenu, smaltworksFooter } from './theme/smaltworks'
+import { readFileSync } from 'node:fs'
 import { playgroundPlugin } from './theme/playground'
+import { railroadPlugin } from './theme/railroad'
 import { agentDocs, packageVersion } from './theme/agents'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -11,6 +13,9 @@ const REPO = 'https://github.com/stenhoor/smaltql'
 // Served at stenhoor.github.io/smaltql/ until the site has a domain of its own: then DOCS_BASE is '/'.
 const base = process.env.DOCS_BASE ?? '/smaltql/'
 const ENGINE = 'https://smaltdb.dev'
+// smaltql's grammar, written from the parser and tested against it (test/grammar.test.ts): the syntax diagrams and the
+// agent guide read it.
+const GRAMMAR = readFileSync(path.resolve(here, '../grammar.ebnf'), 'utf8')
 
 export default defineConfig({
   title: 'smaltql',
@@ -33,6 +38,7 @@ export default defineConfig({
       version: packageVersion(path.resolve(here, '../../package.json')),
       url: `https://stenhoor.github.io${base}`,
       intro: 'guide/agents.md',
+      grammar: GRAMMAR,
       guide: ['reference/sql/', 'reference/functions/', 'guide/errors', 'guide/sqlite-differences'],
     })
   },
@@ -61,6 +67,8 @@ export default defineConfig({
       }
       // ```sql play fences are playgrounds (BRAND.md, Documentation, rule 7).
       md.use(playgroundPlugin)
+      // ```railroad fences draw rules of the grammar as syntax diagrams (rule 4).
+      md.use(railroadPlugin, { grammar: GRAMMAR })
     },
   },
   themeConfig: {
