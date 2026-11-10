@@ -444,3 +444,7 @@ SELECT u.tag, u.pos FROM unnest(ARRAY['a', 'b', 'c']) WITH ORDINALITY AS u(tag, 
 | c | 3 |
 
 `unnest` takes one list: several lists, and `unnest` in the select list, are not supported.
+
+## Struct fields {#struct-fields}
+
+A struct column (from a table another language defined, or Parquet) reads as JSON text. `(s).name` reads one of its fields (a smaltdb extension, as in Postgres): the parentheses are needed, and names match regardless of case. A field that is itself a list or struct is not supported yet, and neither is `(s).*`.

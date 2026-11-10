@@ -23,7 +23,7 @@ const SQL_FUNCTIONS = new Set([
   'percentile_disc', 'pi', 'pow', 'power', 'printf', 'quote', 'radians', 'random', 'randomblob', 'regex_find',
   'regex_match', 'regex_replace', 'regex_replace_all', 'replace', 'round', 'rtrim', 'second', 'sign', 'sin', 'sinh',
   'skewness', 'skewness_pop', 'smaltdb_version', 'sqrt', 'stddev', 'stddev_pop', 'stddev_samp', 'strftime',
-  'string_agg', 'struct_field', 'substr', 'substring', 'sum', 'tan', 'tanh', 'time', 'timediff', 'to_zone', 'total',
+  'string_agg', 'substr', 'substring', 'sum', 'tan', 'tanh', 'time', 'timediff', 'to_zone', 'total',
   'total_changes', 'trim', 'trunc', 'typeof', 'unicode', 'unixepoch', 'unlikely', 'upper',
   'upper_unicode', 'var_pop', 'var_samp', 'variance', 'weekday', 'year', 'zeroblob', 'zone_offset'
 ]);
