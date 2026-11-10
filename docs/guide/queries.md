@@ -180,7 +180,7 @@ The TypeScript type of parameters, `Params`, accepts these values: `SqlValue` (`
 - A `bigint` outside the 64-bit range of INTEGER rejects with `SMALT_RANGE` ("integer … is out of range").
 - `Date`, `ArrayBuffer` and other objects reject with `SMALT_MISMATCH` ("unsupported parameter type"). Pass dates as text (`date.toISOString()`) or numbers; wrap an `ArrayBuffer` in a `Uint8Array`.
 
-```sql play
+```sql
 SELECT typeof(2) AS a, typeof(2.5) AS b, typeof('x') AS c, typeof(x'00') AS d, typeof(NULL) AS e;
 ```
 

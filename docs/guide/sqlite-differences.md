@@ -13,7 +13,7 @@ The two that affect almost every application:
 
 Every table behaves like a SQLite `STRICT` table: a value is converted to the column's type only when nothing is lost, and otherwise rejected with `SMALT_CONSTRAINT_DATATYPE`. SQLite's ordinary tables store anything anywhere. SQLite-style dynamic typing (`LOOSE` tables) is not supported.
 
-```sql play
+```sql
 CREATE TABLE t(n INTEGER, s TEXT);
 INSERT INTO t VALUES ('42', 7);
 SELECT n, typeof(n) AS tn, s, typeof(s) AS ts FROM t

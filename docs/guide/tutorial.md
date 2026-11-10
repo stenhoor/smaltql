@@ -49,7 +49,7 @@ Columns are typed strictly by default: a `TEXT` value in an `INTEGER` column is 
 
 ## 3. Insert rows
 
-```sql play
+```sql
 INSERT INTO projects(name) VALUES ('Website'), ('Garden');
 INSERT INTO tasks(project_id, title, estimate) VALUES
   (1, 'Write the landing page', 3),

@@ -49,7 +49,7 @@ so `ARRAY [1]` is not a list.
 - **Arguments:** any number of values, including none.
 - **Returns:** a list, shown as JSON text.
 
-```sql play
+```sql
 SELECT ARRAY[3, 1, 2] AS numbers, ARRAY['a', NULL] AS with_null, ARRAY[] AS empty;
 ```
 

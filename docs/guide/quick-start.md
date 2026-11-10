@@ -31,7 +31,7 @@ console.log(rows); // [{ name: 'apple', price: 0.5 }]
 This is the same kind of SQL, running in your browser. Change it and press **Run** (or Ctrl+Enter); **Reset** brings
 back the example, and **Share** copies a link to your version.
 
-```sql play
+```sql
 CREATE TABLE fruit(name TEXT PRIMARY KEY, color TEXT NOT NULL, price REAL NOT NULL);
 INSERT INTO fruit VALUES ('apple', 'red', 0.5), ('banana', 'yellow', 0.25), ('cherry', 'red', 3), ('lemon', 'yellow', 0.4);
 SELECT color, count(*) AS kinds, round(avg(price), 2) AS average_price

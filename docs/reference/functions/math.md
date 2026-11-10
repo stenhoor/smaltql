@@ -22,7 +22,7 @@ The math functions (all of the table above) follow SQLite, which builds them int
 - **Undefined results are NULL:** the square root of a negative number, the logarithm of zero or a negative number, `acos(2)`, `mod(x, 0)`.
 - **Overflow gives infinity**, which is a REAL and turns into the text `Inf` (`-Inf`), as in SQLite.
 
-```sql play
+```sql
 SELECT sqrt('16') AS a, sqrt(' 2.25 ') AS b, sqrt('x') AS c, sqrt(x'34') AS d, sqrt(NULL) AS e;
 ```
 

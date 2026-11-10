@@ -18,7 +18,7 @@ UPDATE accounts SET balance = balance - 50;
 
 The update fails on bob's row, so ann's row is not changed either:
 
-```sql play
+```sql
 SELECT owner, balance FROM accounts;
 ```
 

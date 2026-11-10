@@ -71,7 +71,7 @@ A table has at most one primary key (`table "t" has more than one primary key`).
 
 A column declared exactly `INTEGER PRIMARY KEY` (the type name `INTEGER`, a single column, not `DESC`) is the table's rowid: it takes no extra storage, lookups by it are the fastest, and when an insert leaves it NULL it gets one more than the largest rowid in the table. Any other primary key (`INT PRIMARY KEY`, `TEXT PRIMARY KEY`, several columns) is a unique index next to a separate rowid, as in SQLite.
 
-```sql play
+```sql
 CREATE TABLE k1(id INTEGER PRIMARY KEY, v TEXT);
 CREATE TABLE k2(id INT PRIMARY KEY, v TEXT);
 INSERT INTO k1(v) VALUES ('a');

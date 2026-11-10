@@ -1,3 +1,9 @@
+---
+# The examples on this page need the @smaltdb/io and @smaltdb/external plugins and the files the docs tests
+# register, which the playgrounds do not load.
+playground: false
+---
+
 # External tables
 
 An external table is a catalog entry for data that lives outside the database: a CSV, JSON or Parquet file in the browser, on a web server, in S3 or Azure Blob Storage, or on disk in Node. Queries read it like a table; the database never writes to it. A connection names an endpoint and the credentials for it.
@@ -40,10 +46,10 @@ SELECT connection_name, connection_type, url, credentials, options FROM informat
 
 | connection_name | connection_type | url | credentials | options |
 | --- | --- | --- | --- | --- |
-| web | http | `https://data.example.com/v1/` | api-token | {} |
-| lake | s3 | NULL | aws | {"region":"eu-west-1","bucket":"analytics"} |
+| web | http | `https://data.example.com/v1/` | api-token | `{}` |
+| lake | s3 | NULL | aws | `{"region":"eu-west-1","bucket":"analytics"}` |
 | minio | s3 | NULL | NULL | `{"endpoint":"http://localhost:9000","bucket":"test"}` |
-| blobs | azure | NULL | az | {"account":"mystore","container":"exports"} |
+| blobs | azure | NULL | az | `{"account":"mystore","container":"exports"}` |
 
 Creating a connection does not contact the endpoint. Errors (`SMALT_ERROR`):
 

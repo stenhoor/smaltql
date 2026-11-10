@@ -10,7 +10,7 @@ update-stmt
 
 Every row for which `WHERE` is true is changed; without `WHERE`, every row. The expressions on the right of `SET` see the row's old values, so `SET a = b, b = a` swaps two columns. New values are converted to the column types as for [INSERT](./insert) and checked against the table's constraints.
 
-```sql play
+```sql
 CREATE TABLE item(id INTEGER PRIMARY KEY, name TEXT UNIQUE, price REAL, stock INTEGER);
 INSERT INTO item VALUES (1, 'pen', 1.5, 10), (2, 'ink', 4.0, 0), (3, 'pad', 2.25, 5);
 UPDATE item SET price = price * 2, stock = stock - 1 WHERE stock > 0;

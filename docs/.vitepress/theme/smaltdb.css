@@ -243,3 +243,13 @@ svg.sw-rr { display: block; max-width: none; }
 .sw-play-note { font-size: 15px; color: var(--vp-c-text-2); }
 .sw-play-error { margin: 12px 0; padding: 10px 12px; border-radius: 6px; font-size: 14px; color: var(--vp-c-danger-1); background: var(--vp-c-danger-soft); }
 .sw-play-error strong { font-family: var(--smalt-brand-font); font-size: 13px; }
+/* At rest, an example that runs in place looks like any example: its code, a small Run button and its tested result.
+   Run or Edit makes it live, with the toolbar and the frame above. */
+.sw-play:not(.sw-play-live) { border: 0; border-radius: 0; overflow: visible; }
+.vp-doc .sw-play:not(.sw-play-live) div[class*='language-'] { border-radius: 8px; }
+.sw-play:not(.sw-play-live) .sw-play-bar { padding: 6px 0 0; background: none; border: 0; }
+.sw-play:not(.sw-play-live) .sw-play-bar > :not(.sw-play-run):not(.sw-play-status) { display: none; }
+.sw-play:not(.sw-play-live) .sw-play-run { padding: 5px 10px; font-size: 12px; }
+.sw-play:not(.sw-play-live) .sw-play-run::before { content: '▶ '; font-size: 10px; }
+.sw-play:not(.sw-play-live) .sw-play-result { padding: 0; }
+.sw-play-fails { margin: 8px 0 12px; font-size: 14px; color: var(--vp-c-text-2); }

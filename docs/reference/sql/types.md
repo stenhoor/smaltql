@@ -14,7 +14,7 @@ Every value in smaltdb has one of SQLite's five storage types. Every column has 
 
 `typeof(x)` returns the storage type of a value in lower case.
 
-```sql play
+```sql
 SELECT typeof(NULL) AS a, typeof(42) AS b, typeof(4.2) AS c, typeof('x') AS d, typeof(x'00') AS e
 ```
 

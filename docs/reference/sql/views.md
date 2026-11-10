@@ -10,7 +10,7 @@ create-view-stmt
 
 A view is read like a table. Its query runs every time the view is used. The column list, if given, renames the query's columns and must match their number (otherwise reading the view fails with `expected 2 columns for 'v' but got 1`).
 
-```sql play
+```sql
 CREATE TABLE sale(day TEXT, product TEXT, amount REAL);
 INSERT INTO sale VALUES
   ('2024-01-01', 'pen', 10), ('2024-01-01', 'ink', 5), ('2024-01-02', 'pen', 7);
