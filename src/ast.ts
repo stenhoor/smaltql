@@ -305,6 +305,8 @@ export interface JoinRef extends Node {
   right: FromItem;
   on?: Expr;
   using?: string[];
+  /** `ASOF [LEFT] JOIN`: each left row with the right row whose key is nearest its own. */
+  asof?: boolean;
 }
 
 export interface OrderingTerm extends Node {

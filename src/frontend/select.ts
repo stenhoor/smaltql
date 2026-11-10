@@ -957,7 +957,7 @@ class FrontEnd {
       if (where) root = { op: 'filter', input: root, pred: bindExpr(where, this.compileScope(scope)) };
       return root;
     }
-    const items: { item: FromItem; joinType: JoinType; on?: Expr; using?: string[]; natural: boolean }[] = [];
+    const items: { item: FromItem; joinType: JoinType; on?: Expr; using?: string[]; natural: boolean; asof?: boolean }[] = [];
     this.flattenFrom(from, 'INNER', undefined, undefined, false, items);
     const inputs = items.map((it) => this.addSource(it.item, scope));
     // USING / NATURAL become equality conjuncts in the ON clause, and hide the right side's copy of the column.
@@ -992,9 +992,29 @@ class FrontEnd {
       const it = items[p];
       const outer = it.joinType === 'LEFT' || it.joinType === 'RIGHT' || it.joinType === 'FULL';
       const parts: PlanExpr[] = [];
+      let asof: { left: PlanExpr; right: PlanExpr; direction: 'backward' | 'forward' } | undefined;
       scope.onSource = p;
       try {
         const cs = this.compileScope(scope);
+        if (it.asof) {
+          // The one inequality between the two sides is the as-of condition; the other conjuncts limit the candidates.
+          const k = ons[p].findIndex((c) => c.kind === 'binary' && ['>=', '<=', '>', '<'].includes(c.op));
+          if (k < 0) throw new SmaltError('SMALT_ERROR', 'ASOF JOIN needs an inequality (>= or <=) between the two sides in its ON clause');
+          const c = ons[p][k] as Extract<Expr, { kind: 'binary' }>;
+          ons[p] = ons[p].filter((_, i) => i !== k);
+          if (c.op === '>' || c.op === '<') throw new SmaltError('SMALT_UNSUPPORTED', `ASOF JOIN with ${c.op} is not supported: use >= or <=`);
+          const a = bindExpr(c.left, cs);
+          const b = bindExpr(c.right, cs);
+          const [l, r, flip] = this.readsRight(b) && !this.readsRight(a) ? [a, b, false] : this.readsRight(a) && !this.readsRight(b) ? [b, a, true] : [undefined, undefined, false];
+          if (!l || !r) throw new SmaltError('SMALT_ERROR', 'ASOF JOIN: each side of its inequality must read one side of the join');
+          // left >= right: the nearest right key at or below the left one.
+          const geq = (c.op === '>=') !== flip;
+          asof = { left: l, right: r, direction: geq ? 'backward' : 'forward' };
+          if (it.joinType !== 'LEFT') {
+            // An inner as-of join keeps only the left rows that found one.
+            later.push({ kind: 'binary', op: 'IS NOT', left: flip ? c.left : c.right, right: { kind: 'literal', value: null, isReal: false, pos: 0, end: 0 }, pos: 0, end: 0 } as Expr);
+          }
+        }
         for (const c of ons[p]) {
           try {
             parts.push(bindExpr(c, cs));
@@ -1006,6 +1026,11 @@ class FrontEnd {
         }
       } finally {
         scope.onSource = -1;
+      }
+      if (asof) {
+        const on = parts.length ? parts.reduce((x, y) => ({ k: 'and', type: 'int', args: [x, y] })) : undefined;
+        root = { op: 'join', kind: 'asof', inputs: [root, inputs[p]], ...(on ? { on } : {}), asof } as PlanOp;
+        continue;
       }
       const kind: JoinKind = it.joinType === 'LEFT' ? 'left' : it.joinType === 'RIGHT' ? 'right' : it.joinType === 'FULL' ? 'full' : parts.length ? 'inner' : 'cross';
       const on = parts.length ? parts.reduce((x, y) => ({ k: 'and', type: 'int', args: [x, y] })) : undefined;
@@ -1026,7 +1051,7 @@ class FrontEnd {
     on: Expr | undefined,
     using: string[] | undefined,
     natural: boolean,
-    out: { item: FromItem; joinType: JoinType; on?: Expr; using?: string[]; natural: boolean }[],
+    out: { item: FromItem; joinType: JoinType; on?: Expr; using?: string[]; natural: boolean; asof?: boolean }[],
   ): void {
     if (item.kind === 'join') {
       this.flattenFrom(item.left, joinType, on, using, natural, out);
@@ -1035,7 +1060,7 @@ class FrontEnd {
         this.flattenFrom(item.right, 'INNER', undefined, undefined, false, out);
         if (item.on) out[out.length - 1].on = out[out.length - 1].on ? ({ kind: 'binary', op: 'AND', left: out[out.length - 1].on!, right: item.on, pos: 0, end: 0 } as Expr) : item.on;
       } else {
-        out.push({ item: item.right, joinType: item.joinType === 'CROSS' ? 'INNER' : item.joinType, on: item.on, using: item.using, natural: item.natural });
+        out.push({ item: item.right, joinType: item.joinType === 'CROSS' ? 'INNER' : item.joinType, on: item.on, using: item.using, natural: item.natural, ...(item.asof ? { asof: true } : {}) });
       }
       return;
     }
@@ -1354,6 +1379,11 @@ class FrontEnd {
         this.resolveRefs(o.inputs[0]);
         this.resolveRefs(o.inputs[1]);
         if (o.on) o.on = ex(o.on);
+        if (o.kind === 'asof' && o.asof) {
+          const a = o.asof as Mutable<NonNullable<typeof o.asof>>;
+          a.left = ex(a.left);
+          a.right = ex(a.right);
+        }
         break;
       case 'setop':
         this.resolveRefs(o.inputs[0]);
@@ -1408,6 +1438,21 @@ class FrontEnd {
     return op;
   }
 
+  /** Whether bound expression `e` reads the right side of the join being bound (input 1, not a correlated row). */
+  private readsRight(e: unknown): boolean {
+    if (e === null || typeof e !== 'object') return false;
+    if (Array.isArray(e)) return e.some((x) => this.readsRight(x));
+    const o = e as Record<string, unknown>;
+    if (o.k === 'slot') {
+      const r = this.refs[o.reg as number];
+      return r !== undefined && r.input === 1 && r.depth === 0;
+    }
+    if (o.k === 'col') return o.input === 1 && o.depth === 0;
+    if (o.k === 'subquery' || o.k === 'inSubquery') return false;
+    for (const key in o) if (this.readsRight(o[key])) return true;
+    return false;
+  }
+
   /** `e` with its slots replaced (in place, below the root; the root itself when it is a slot is returned replaced). */
   private resolveExpr(e: BoundExpr): PlanExpr {
     const w = e as Mutable<BoundExpr>;
@@ -1454,3 +1499,4 @@ class FrontEnd {
     }
   }
 }
+
