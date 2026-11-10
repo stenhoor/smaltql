@@ -163,6 +163,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`sum(X)`](./aggregate#sum) | aggregate | Sum; NULL when there are no values |
 | [`tan(X)`](./math#sin) | scalar | Tangent |
 | [`tanh(X)`](./math#sinh) | scalar | Hyperbolic tangent |
+| [`TIME 'TEXT'`](./extensions#dates) | keyword | A time literal |
 | [`time(TIME, MOD, …)`](./datetime#time) | scalar | Time as `HH:MM:SS` |
 | [`timediff(A, B)`](./datetime#timediff) | scalar | Difference between two times |
 | [`TIMESTAMP 'TEXT'`](./extensions#dates) | keyword | A date and time literal |

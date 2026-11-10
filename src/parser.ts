@@ -1850,8 +1850,8 @@ class Parser {
     const pos = this.pos();
     const first = this.vals[this.p++] as string;
     const upper = first.toUpperCase();
-    if ((upper === 'DATE' || upper === 'TIMESTAMP' || upper === 'INTERVAL') && this.kinds[this.p] === TK_STRING) {
-      // `DATE '…'`, `TIMESTAMP '…'`, `INTERVAL '…'` (SQL standard; smaltdb ADR 0022): a typed literal.
+    if ((upper === 'DATE' || upper === 'TIME' || upper === 'TIMESTAMP' || upper === 'INTERVAL') && this.kinds[this.p] === TK_STRING) {
+      // `DATE '…'`, `TIME '…'`, `TIMESTAMP '…'`, `INTERVAL '…'` (SQL standard; smaltdb ADR 0022): a typed literal.
       const lpos = this.pos();
       const value = this.vals[this.p++] as string;
       const text: A.Expr = { kind: 'literal', pos: lpos, value, isReal: false, end: this.ends[this.p - 1] };

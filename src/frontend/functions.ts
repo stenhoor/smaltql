@@ -36,6 +36,7 @@ const SQL_SPELLINGS: Readonly<Record<string, string>> = {
   // What the parser gives typed literals and ARRAY[…]: names SQL text can't spell.
   '#date': 'cast_date',
   '#timestamp': 'cast_datetime',
+  '#time': 'cast_time',
   '#array': 'list_of',
   strptime: 'parse_datetime',
   // Lists (smaltdb ADR 0022, step 5): Postgres's and DuckDB's names.
