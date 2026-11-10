@@ -229,6 +229,13 @@ ORDER BY i;
 | 3 | NULL | 10 | 10 | 10 |
 | 4 | 30 | NULL | 10 | 10 |
 
+On any other window function it fails with `SMALT_ERROR`:
+
+<!-- docs:error SMALT_ERROR -->
+```sql
+SELECT sum(x) IGNORE NULLS OVER () FROM (SELECT 1 AS x);
+```
+
 ## Aggregate functions as window functions {#aggregate-functions-as-window-functions}
 
 Every [aggregate function](./aggregate) (`count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, `string_agg`) becomes a window function when it has an `OVER` clause. It then aggregates the rows of the current row's frame, and `FILTER (WHERE …)` restricts which frame rows count. Scalar functions cannot be used with `OVER` (`abs() may not be used as a window function`).

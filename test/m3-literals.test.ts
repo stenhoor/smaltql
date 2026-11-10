@@ -16,6 +16,9 @@ describe('date literals and intervals (ADR 0022 step 3)', () => {
     ["DATE '2026-01-31' + INTERVAL '1 month'", '2026-02-28'],
     ["TIMESTAMP '2026-11-07 10:00:00' + INTERVAL '1 day 2 hours'", '2026-11-08 12:00:00'],
     ["TIMESTAMP '2026-11-07 10:00:00' - INTERVAL '30 minutes'", '2026-11-07 09:30:00'],
+    ["TIMESTAMP '2026-11-07 10:00:00' - INTERVAL '1 hour 30 minutes'", '2026-11-07 08:30:00'],
+    ["TIMESTAMP '2026-11-07 10:00:00' + INTERVAL '-1 hour -30 minutes'", '2026-11-07 08:30:00'],
+    ["TIMESTAMP '2026-11-07 10:00:00' - INTERVAL '-1 hour -30 minutes'", '2026-11-07 11:30:00'],
     ["'2026-11-07' + INTERVAL '1 week'", '2026-11-14 00:00:00'],
     ["INTERVAL '1 year' + DATE '2026-02-28'", '2027-02-28'],
     ["'2026-11-07' + 1", 2027],
@@ -25,6 +28,7 @@ describe('date literals and intervals (ADR 0022 step 3)', () => {
     ["SELECT DATE 'not a date'", /./],
     ["SELECT TIME 'noon'", /'noon' is not a time/],
     ["SELECT INTERVAL '1 day'", /INTERVAL can only be added/],
+    ["SELECT DATE '2026-11-07' + INTERVAL '1 hour -30 minutes'", /mixes positive and negative parts/],
     ["SELECT DATE '2026-11-07' + INTERVAL '1 fortnight'", /invalid INTERVAL unit/],
     ["SELECT DATE '2026-11-07' + INTERVAL 'soon'", /invalid INTERVAL/],
   ])('%s is an error', (sql, err) => expect(() => all(sql)).toThrow(err));
