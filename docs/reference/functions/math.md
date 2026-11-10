@@ -256,7 +256,8 @@ round_even(X, DIGITS)
 
 `X` rounded to `DIGITS` places after the point (default 0), with a half rounded to the even digit: `2.5` gives `2`,
 `3.5` gives `4`. Whether a value is a half is decided on its exact binary value, so `2.675`, stored just below it,
-gives `2.67`. `round` rounds halves away from zero, as in SQLite. A smaltdb extension.
+gives `2.67`. `DIGITS` is clamped to 0–30, as for `round`, so a negative value means 0. `round` rounds halves away
+from zero, as in SQLite. A smaltdb extension.
 
 - **Returns:** REAL; NULL for NULL. Text converts as a number, and text that isn't one is 0.
 
