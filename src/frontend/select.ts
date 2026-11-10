@@ -8,7 +8,7 @@ import { storageTypeFor } from 'smaltdb/language';
 import { SmaltError } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
 import { CollSrc } from './meaning.js';
-import { type ColumnBinding, type CompileScope, bindExpr as bindAst, conjuncts, withCompiledMeta as withCompiledMetaBound } from './bind-expr.js';
+import { type ColumnBinding, type CompileScope, bindExpr as bindAst, conjuncts, forColumn, withCompiledMeta as withCompiledMetaBound } from './bind-expr.js';
 import { aggregateFunction, metadata, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { flattenCore, flatteningDisabled } from './flatten.js';
 import { sqlView } from './views.js';
@@ -341,7 +341,7 @@ class FrontEnd {
         if (sc.columns.length !== 1) throw new SmaltError('SMALT_UNSUPPORTED', 'row-value assignments are not supported yet');
         const column = findColumn(table, sc.columns[0]);
         if (column < 0) throw new SmaltError('SMALT_ERROR', `no such column: ${sc.columns[0]}`);
-        sets.push({ column, value: bindExpr(sc.value, cs) });
+        sets.push({ column, value: forColumn(bindExpr(sc.value, cs), table.columns[column]!.storageType) });
       }
       const where = u.action.where ? bindExpr(u.action.where, cs) : undefined;
       return { target, update: { sets, ...(where ? { where } : {}) } };
@@ -352,13 +352,16 @@ class FrontEnd {
       const cs = this.compileScope(new FeScope(null));
       const rows = stmt.source.rows.map((row) => {
         if (row.length !== columns.length) throw new SmaltError('SMALT_ERROR', `table ${table.name} has ${ncols} columns but ${row.length} values were supplied`);
-        return row.map((e) => bindExpr(e, cs));
+        return row.map((e, i) => (columns[i]! < 0 ? bindExpr(e, cs) : forColumn(bindExpr(e, cs), table.columns[columns[i]!]!.storageType)));
       });
       input = { op: 'values', rows, types: rows[0].map((e) => typeOf(e)) };
     } else if (stmt.source.kind === 'select') {
       const r = this.select(stmt.source.select, null);
       if (r.columns.length !== columns.length) throw new SmaltError('SMALT_ERROR', `table ${table.name} has ${ncols} columns but ${r.columns.length} values were supplied`);
-      input = r.plan;
+      // A list, struct, date or time written into a column of that type: the value under SQL's text of it.
+      input = r.plan.op === 'project'
+        ? { ...r.plan, exprs: r.plan.exprs.map((e, i) => (columns[i]! < 0 ? e : forColumn(e, table.columns[columns[i]!]!.storageType))) }
+        : r.plan;
       source = r.columns;
     }
     const plan: PlanOp = { op: 'append', table: table.name, db: table.schema, input, columns, upserts, ...(ret ? { returning: ret.exprs } : {}) };
@@ -387,7 +390,7 @@ class FrontEnd {
         if (ROWID_NAMES.has(name.toLowerCase())) column = -1;
         else throw new SmaltError('SMALT_ERROR', `no such column: ${name}`);
       }
-      sets.push({ column, value: bindExpr(s.value, cs) });
+      sets.push({ column, value: column < 0 ? bindExpr(s.value, cs) : forColumn(bindExpr(s.value, cs), table.columns[column]!.storageType) });
     }
     const ret = stmt.returning ? this.returning(stmt.returning, table, stmt.alias) : undefined;
     const plan: PlanOp = { op: 'update', table: table.name, db, input, rowid, sets, from: stmt.from !== undefined, ...(ret ? { returning: ret.exprs } : {}) };
