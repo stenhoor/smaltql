@@ -28,3 +28,15 @@ describe('computed values as SQL holds them', () => {
     expect(one('SELECT implode(x) FROM (SELECT 1 x UNION ALL SELECT 2)')).toBe('[1,2]');
   });
 });
+
+describe('the functions SQL calls (smaltdb ADR 0022, decision 2)', () => {
+  it.each(['div_float(7, 2)', 'div_floor(7, 2)', 'mod_floor(7, 2)', 'round_half_even(2.5)', 'round_half_away(2.5)', 'random_at(1, 2)', 'struct_of(1)'])(
+    '%s is not SQL',
+    (expr) => expect(() => one(`SELECT ${expr}`)).toThrow(/no such function/),
+  );
+  it.each(['sum_float', 'avg_float'])('%s is not SQL', (fn) => expect(() => one(`SELECT ${fn}(x) FROM (SELECT 1.0 x)`)).toThrow(/no such function/));
+  it('round_even rounds halves to even', () => {
+    expect(one('SELECT round_even(2.5)')).toBe(2);
+    expect(one('SELECT round_even(0.125, 2)')).toBe(0.12);
+  });
+});

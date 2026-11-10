@@ -9,7 +9,7 @@ import type { CallExpr, ColumnExpr, Expr, SelectStmt } from '../ast.js';
 import { Collation, type SqlValue, collationByName } from 'smaltdb/language';
 import { type Affinity, type StaticType, affinityOfStorage, staticTypeOfStorage } from 'smaltdb/language';
 import type { Catalog } from 'smaltdb/language';
-import { isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
+import { engineName, isAggregateName, resultType, scalarFunction, takesArgs, windowFunction } from './functions.js';
 import { type BoundExpr, call, lit, param, typeOf } from 'smaltdb/language';
 import type { PlanOp } from 'smaltdb/language';
 import { comparisonRule, engineFunctions } from 'smaltdb/language';
@@ -389,12 +389,13 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   });
   // A function's result type follows from its arguments' types (and collations).
   const argTypes = args.map((a) => ({ type: typeOf(a), collation: collationName(metaOf(a).collation) }));
-  const type = resultType(name, argTypes);
+  const fn = engineName(name) ?? name;
+  const type = resultType(fn, argTypes);
   // Collation of a function result: from its first argument when that argument carries one.
   const first = args[0] ? metaOf(args[0]) : NO_META;
   const explicit = first.collSrc === CollSrc.Explicit;
   const meaning = { collation: explicit ? first.collation : Collation.Binary, collSrc: explicit ? CollSrc.Explicit : CollSrc.None, affinity: 'NONE' as const };
-  return withMeaning(sqlValue(call(name, args, type), engineFunctions.resultType(name, argTypes)), meaning);
+  return withMeaning(sqlValue(call(fn, args, type), engineFunctions.resultType(fn, argTypes)), meaning);
 }
 
 /** Functions whose arguments are the engine's dates and times, not SQL's text of them. */

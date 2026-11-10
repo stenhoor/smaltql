@@ -6,16 +6,45 @@
 import { type Affinity, type BoundExpr, type Catalog, type CatalogFunction, Collation, type StaticType, engineFunctions } from 'smaltdb/language';
 import { CollSrc } from './meaning.js';
 
+/**
+ * The engine functions SQL calls by name (smaltdb ADR 0022, decision 2): SQLite's, and the smaltdb extensions. Any
+ * other engine function, including one the engine adds later, is `no such function` in SQL until smaltql spells it.
+ */
+const SQL_FUNCTIONS = new Set([
+  'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'avg', 'cast_date', 'cast_datetime', 'ceil',
+  'ceiling', 'changes', 'char', 'coalesce', 'concat', 'concat_ws', 'corr', 'cos', 'cosh', 'count', 'covar_pop',
+  'covar_samp', 'date', 'datetime', 'day', 'day_of_year', 'degrees', 'exp', 'first', 'floor', 'format',
+  'format_temporal', 'from_zone', 'group_concat', 'hex', 'hour', 'if', 'ifnull', 'iif', 'implode', 'instr',
+  'julianday', 'kurtosis', 'kurtosis_pop', 'last', 'last_insert_rowid', 'length', 'likelihood', 'likely',
+  'list_concat', 'list_contains', 'list_get', 'list_join', 'list_len', 'list_max', 'list_mean', 'list_min', 'list_of',
+  'list_reverse', 'list_slice', 'list_sort', 'list_sum', 'list_unique', 'ln', 'log', 'log10', 'log2', 'lower',
+  'lower_unicode', 'ltrim', 'make_date', 'make_datetime', 'max', 'median', 'microsecond', 'min', 'minute', 'mod',
+  'month', 'nullif', 'octet_length', 'offset_by', 'parse_date', 'parse_datetime', 'percentile', 'percentile_cont',
+  'percentile_disc', 'pi', 'pow', 'power', 'printf', 'quote', 'radians', 'random', 'randomblob', 'regex_find',
+  'regex_match', 'regex_replace', 'regex_replace_all', 'replace', 'round', 'rtrim', 'second', 'sign', 'sin', 'sinh',
+  'skewness', 'skewness_pop', 'smaltdb_version', 'sqrt', 'stddev', 'stddev_pop', 'stddev_samp', 'strftime',
+  'string_agg', 'struct_field', 'substr', 'substring', 'sum', 'tan', 'tanh', 'time', 'timediff', 'to_zone', 'total',
+  'total_changes', 'trim', 'trunc', 'trunc_temporal', 'typeof', 'unicode', 'unixepoch', 'unlikely', 'upper',
+  'upper_unicode', 'var_pop', 'var_samp', 'variance', 'weekday', 'year', 'zeroblob', 'zone_offset'
+]);
+
+/** SQL's names for engine functions it spells differently. */
+const SQL_SPELLINGS: Readonly<Record<string, string>> = { round_even: 'round_half_even' };
+
+/** The engine function a SQL function name calls, or undefined if SQL has no such function. */
+export const engineName = (name: string): string | undefined => SQL_SPELLINGS[name] ?? (SQL_FUNCTIONS.has(name) ? name : undefined);
+
 /** True when `name` is an aggregate function (`min` and `max` of one argument; of several they are scalars). */
-export const isAggregateName = (name: string): boolean => engineFunctions.function(name, 'aggregate') !== undefined;
+export const isAggregateName = (name: string): boolean => engineName(name) !== undefined && engineFunctions.function(name, 'aggregate') !== undefined;
 
 /** A named scalar function SQL can call (the engine's operations are reached through SQL's operators instead). */
 export function scalarFunction(name: string): CatalogFunction | undefined {
-  const f = engineFunctions.function(name, 'scalar');
+  const engine = engineName(name);
+  const f = engine === undefined ? undefined : engineFunctions.function(engine, 'scalar');
   return f && !f.operation ? f : undefined;
 }
 
-export const aggregateFunction = (name: string): CatalogFunction | undefined => engineFunctions.function(name, 'aggregate');
+export const aggregateFunction = (name: string): CatalogFunction | undefined => (isAggregateName(name) ? engineFunctions.function(name, 'aggregate') : undefined);
 
 /** A window-only function (ranking and navigation). */
 export const windowFunction = (name: string): CatalogFunction | undefined => engineFunctions.function(name, 'window');
