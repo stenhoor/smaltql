@@ -485,8 +485,16 @@ class Parser {
     }
     this.expectKw('SELECT');
     let distinct = false;
-    if (this.acceptKw('DISTINCT')) distinct = true;
-    else this.acceptKw('ALL');
+    let distinctOn: A.Expr[] | undefined;
+    if (this.acceptKw('DISTINCT')) {
+      distinct = true;
+      // `DISTINCT ON (exprs)` (Postgres; smaltdb ADR 0022): the first row of each set, in ORDER BY's order.
+      if (this.isKw('ON') && this.isOpAt(this.p + 1, '(')) {
+        this.p += 2;
+        distinctOn = this.exprList();
+        this.expectOp(')');
+      }
+    } else this.acceptKw('ALL');
     const columns = this.resultColumns();
     const from = this.acceptKw('FROM') ? this.fromClause() : undefined;
     const where = this.acceptKw('WHERE') ? this.expr() : undefined;
@@ -504,7 +512,7 @@ class Parser {
         windows.push({ name, spec: this.windowSpec() });
       } while (this.acceptOp(','));
     }
-    return { kind: 'select', pos, distinct, columns, from, where, groupBy, having, windows, end: this.ends[this.p - 1] };
+    return { kind: 'select', pos, distinct, ...(distinctOn ? { distinctOn } : {}), columns, from, where, groupBy, having, windows, end: this.ends[this.p - 1] };
   }
 
   private resultColumns(): A.ResultColumn[] {
