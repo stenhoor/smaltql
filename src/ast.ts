@@ -292,6 +292,10 @@ export interface FunctionRef extends Node {
   /** Named arguments (`name => value`, lower-cased names), after the positional ones. */
   named?: Record<string, Expr>;
   alias?: string;
+  /** Column names given with the alias: `AS u(tag, pos)`. */
+  columns?: string[];
+  /** `WITH ORDINALITY`: a last column numbering the rows from 1. */
+  ordinality?: boolean;
 }
 
 export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS';
