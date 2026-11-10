@@ -410,3 +410,21 @@ SELECT DISTINCT ON (shop) shop, day, amt FROM r ORDER BY shop, day DESC;
 | --- | --- | --- |
 | a | 3 | 30 |
 | b | 2 | 20 |
+
+## ASOF JOIN {#asof-join}
+
+`a ASOF JOIN b ON … AND a.k >= b.k` gives each row of `a` the row of `b` whose key is nearest its own (a smaltdb extension, as in DuckDB). The `ON` clause holds one inequality between the two sides: `a.k >= b.k` takes the largest `b.k` at or below `a.k`, and `a.k <= b.k` the smallest at or above it. Its other conditions limit the candidates, such as the same symbol. A row of `a` with no such row is left out, or kept with NULLs by `ASOF LEFT JOIN`. Rows come in `a`'s order.
+
+```sql
+CREATE TABLE trades(sym TEXT, t INTEGER);
+CREATE TABLE quotes(sym TEXT, t INTEGER, px REAL);
+INSERT INTO trades VALUES ('a', 1), ('a', 5), ('a', 10);
+INSERT INTO quotes VALUES ('a', 2, 1.5), ('a', 8, 2.5);
+SELECT trades.t, quotes.px FROM trades ASOF LEFT JOIN quotes ON trades.sym = quotes.sym AND trades.t >= quotes.t;
+```
+
+| t | px |
+| --- | --- |
+| 1 | NULL |
+| 5 | 1.5 |
+| 10 | 2.5 |

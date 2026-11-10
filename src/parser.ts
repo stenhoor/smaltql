@@ -312,6 +312,7 @@ class Parser {
 
   private optAlias(): string | undefined {
     if (this.acceptKw('AS')) return this.nameOrString();
+    if (this.isAsof(this.p)) return undefined;
     const k = this.kinds[this.p];
     if (k === TK_ID || k === TK_QID || k === TK_STRING) return this.vals[this.p++] as string;
     if (k === TK_NKW && !NO_IMPLICIT_ALIAS.has(this.kws[this.p])) return this.vals[this.p++] as string;
@@ -582,7 +583,10 @@ class Parser {
         continue;
       }
       const save = this.p;
-      const natural = this.acceptKw('NATURAL');
+      // `ASOF [LEFT] JOIN` (DuckDB; smaltdb ADR 0022).
+      const asof = this.isAsof(this.p);
+      if (asof) this.p++;
+      const natural = !asof && this.acceptKw('NATURAL');
       let joinType: A.JoinType = 'INNER';
       switch (this.kws[this.p]) {
         case 'LEFT':
@@ -605,8 +609,14 @@ class Parser {
         this.fail();
       }
       const right = this.tableOrSubquery();
-      left = this.joinConstraint({ kind: 'join', pos, joinType, natural, left, right, on: undefined, using: undefined, end: this.ends[this.p - 1] });
+      if (asof && joinType !== 'INNER' && joinType !== 'LEFT') this.fail();
+      left = this.joinConstraint({ kind: 'join', pos, joinType, natural, left, right, on: undefined, using: undefined, ...(asof ? { asof } : {}), end: this.ends[this.p - 1] });
     }
+  }
+
+  /** `ASOF JOIN` or `ASOF LEFT JOIN` starts at token `i`. */
+  private isAsof(i: number): boolean {
+    return this.kinds[i] === TK_ID && String(this.vals[i]).toUpperCase() === 'ASOF' && (this.kws[i + 1] === 'JOIN' || this.kws[i + 1] === 'LEFT');
   }
 
   private joinConstraint(j: A.JoinRef): A.JoinRef {
