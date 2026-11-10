@@ -14,23 +14,26 @@ const SQL_FUNCTIONS = new Set([
   'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh', 'avg', 'cast_date', 'cast_datetime', 'ceil',
   'ceiling', 'changes', 'char', 'coalesce', 'concat', 'concat_ws', 'corr', 'cos', 'cosh', 'count', 'covar_pop',
   'covar_samp', 'date', 'datetime', 'day', 'day_of_year', 'degrees', 'exp', 'first', 'floor', 'format',
-  'format_temporal', 'from_zone', 'group_concat', 'hex', 'hour', 'if', 'ifnull', 'iif', 'implode', 'instr',
+  'from_zone', 'group_concat', 'hex', 'hour', 'if', 'ifnull', 'iif', 'implode', 'instr',
   'julianday', 'kurtosis', 'kurtosis_pop', 'last', 'last_insert_rowid', 'length', 'likelihood', 'likely',
   'list_max', 'list_mean', 'list_min', 'list_of',
   'list_sum', 'ln', 'log', 'log10', 'log2', 'lower',
   'lower_unicode', 'ltrim', 'make_date', 'make_datetime', 'max', 'median', 'microsecond', 'min', 'minute', 'mod',
-  'month', 'nullif', 'octet_length', 'offset_by', 'parse_date', 'parse_datetime', 'percentile', 'percentile_cont',
+  'month', 'nullif', 'octet_length', 'offset_by', 'percentile', 'percentile_cont',
   'percentile_disc', 'pi', 'pow', 'power', 'printf', 'quote', 'radians', 'random', 'randomblob', 'regex_find',
   'regex_match', 'regex_replace', 'regex_replace_all', 'replace', 'round', 'rtrim', 'second', 'sign', 'sin', 'sinh',
   'skewness', 'skewness_pop', 'smaltdb_version', 'sqrt', 'stddev', 'stddev_pop', 'stddev_samp', 'strftime',
   'string_agg', 'struct_field', 'substr', 'substring', 'sum', 'tan', 'tanh', 'time', 'timediff', 'to_zone', 'total',
-  'total_changes', 'trim', 'trunc', 'trunc_temporal', 'typeof', 'unicode', 'unixepoch', 'unlikely', 'upper',
+  'total_changes', 'trim', 'trunc', 'typeof', 'unicode', 'unixepoch', 'unlikely', 'upper',
   'upper_unicode', 'var_pop', 'var_samp', 'variance', 'weekday', 'year', 'zeroblob', 'zone_offset'
 ]);
 
 /** SQL's names for engine functions it spells differently. */
 const SQL_SPELLINGS: Readonly<Record<string, string>> = {
   round_even: 'round_half_even',
+  // Dates and times (step 3).
+  make_timestamp: 'make_datetime',
+  strptime: 'parse_datetime',
   // Lists (smaltdb ADR 0022, step 5): Postgres's and DuckDB's names.
   cardinality: 'list_len',
   array_length: 'list_len',

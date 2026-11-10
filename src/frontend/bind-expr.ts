@@ -396,9 +396,10 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   // The engine's date and list functions take the values under SQL's text (smaltdb ADR 0022, step 1).
   const engine = engineName(name) ?? name;
   const typed = TYPED_ARGS.has(engine) || engine.startsWith('list_') || engine.startsWith('struct_');
-  const args = e.args.map((a) => {
+  const args = e.args.map((a, i) => {
     const b = bindExpr(a, scope);
-    return typed ? (temporalUnder(b) ?? nestedUnder(b) ?? b) : b;
+    const under = typed ? (temporalUnder(b) ?? nestedUnder(b) ?? b) : b;
+    return i === 0 && TEMPORAL_INPUT.has(engine) ? asTemporal(under) : under;
   });
   // A function's result type follows from its arguments' types (and collations).
   const argTypes = args.map((a) => ({ type: typeOf(a), collation: collationName(metaOf(a).collation) }));
@@ -464,6 +465,23 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       const length = call('add', [call('sub', [to, from], 'int'), lit(1, 'int')], 'int');
       return withMeaning(sqlValue(call('list_slice', [l, offset, length], typeOf(l)), undefined), plain);
     }
+    case 'now':
+      arity(0, 0);
+      return withMeaning(call('current_timestamp', [], 'text'), plain);
+    case 'date_part': {
+      // `date_part('field', x)` and `EXTRACT(field FROM x)` (Postgres): the part as an integer.
+      arity(2, 2);
+      const f = args[0]!;
+      const fn = f.kind === 'literal' && typeof f.value === 'string' ? DATE_PARTS[f.value.toLowerCase()] : undefined;
+      if (!fn) throw new SmaltError('SMALT_ERROR', `date_part: unknown field${f.kind === 'literal' ? ` ${String(f.value)}` : ''} (${Object.keys(DATE_PARTS).join(', ')})`);
+      return withMeaning(call(fn, [asTemporal(bindTemporal(args[1]!, scope))], 'int'), plain);
+    }
+    case 'date_trunc': {
+      // `date_trunc('unit', x)` (Postgres): the engine's trunc_temporal(x, unit).
+      arity(2, 2);
+      const x = asTemporal(bindTemporal(args[1]!, scope));
+      return withMeaning(sqlValue(call('trunc_temporal', [x, bindExpr(args[0]!, scope)], typeOf(x)), undefined), plain);
+    }
     case 'isnan': {
       arity(1, 1);
       return withMeaning(call('cast_integer', [call('cmp_eq', [bindExpr(args[0]!, scope), lit(Number.NaN, 'real')], 'int')], 'int'), plain);
@@ -482,6 +500,31 @@ function listArg(b: BoundExpr): BoundExpr {
 
 /** The element type of `list<T>`. */
 const elementType = (t: StaticType): StaticType => t.slice(5, -1) as StaticType;
+
+/** The fields of `EXTRACT` and `date_part`, and the engine function each reads. */
+const DATE_PARTS: Readonly<Record<string, string>> = {
+  year: 'year', month: 'month', day: 'day', hour: 'hour', minute: 'minute', second: 'second', microsecond: 'microsecond',
+  microseconds: 'microsecond', isodow: 'weekday', doy: 'day_of_year',
+};
+
+/** Engine functions whose first argument is a date or time: SQL's text is read as one first (ADR 0022, rule 5). */
+const TEMPORAL_INPUT = new Set([
+  'year', 'month', 'day', 'weekday', 'day_of_year', 'hour', 'minute', 'second', 'microsecond',
+  'format_temporal', 'trunc_temporal', 'offset_by', 'to_zone', 'from_zone', 'zone_offset',
+]);
+
+/** A date or time as the engine holds it: a temporal value as it is, anything else read from its text. */
+function asTemporal(b: BoundExpr): BoundExpr {
+  const t = typeOf(b);
+  if (isTemporal(t)) return b;
+  return call('parse_datetime', [t === 'text' ? b : call('cast_text', [b], 'text')], 'datetime');
+}
+
+/** `e` bound, with a date or time column's value under its text. */
+const bindTemporal = (e: Expr, scope: CompileScope): BoundExpr => {
+  const b = bindExpr(e, scope);
+  return temporalUnder(b) ?? b;
+};
 
 /** Functions whose arguments are the engine's dates and times, not SQL's text of them. */
 const TYPED_ARGS = new Set([
