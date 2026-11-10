@@ -10,6 +10,7 @@ Every function smaltdb accepts, in alphabetical order. Names are case-insensitiv
 | [Date and time functions](./datetime) | `date`, `time`, `datetime`, `julianday`, `unixepoch`, `strftime`, `timediff`, `CURRENT_*`; time values, modifiers and format codes |
 | [Aggregate functions](./aggregate) | `count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, `string_agg`; statistics: `stddev`, `variance`, `corr`, `median`, `percentile`, …; `DISTINCT` and `FILTER` |
 | [Window functions](./window) | Ranking and navigation functions, aggregates over windows, `OVER` syntax |
+| [smaltdb extensions](./extensions) | Functions SQLite doesn't have: `make_date`, time zones, list reductions, Unicode case, `first` / `last`, `round_even` |
 | [Table-valued functions](./table-valued) | `read_csv`, `read_json`, `read_parquet` (from [plugins](../../guide/plugins)), `pragma_*` |
 
 Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are not functions; see [Expressions](../sql/expressions).
@@ -50,31 +51,41 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`degrees(X)`](./math#pi) | scalar | Radians to degrees |
 | [`dense_rank()`](./window#dense_rank) | window | Rank without gaps |
 | [`exp(X)`](./math#exp) | scalar | *e* to the power `X` |
+| [`first(X [, KEY])`](./extensions#first-last) | aggregate | Value of the first row, or at the smallest `KEY` |
 | [`first_value(X)`](./window#first_value) | window | Value from the first row of the frame |
 | [`floor(X)`](./math#ceil) | scalar | Round down |
 | [`format(FORMAT, …)`](./string#printf) | scalar | Same as `printf` |
+| [`from_zone(TS, ZONE [, HOW])`](./extensions#zones) | scalar | UTC instant of a wall-clock time in a zone |
 | [`group_concat(X [, SEP])`](./aggregate#group_concat) | aggregate | Values joined into text |
 | [`hex(X)`](./string#hex) | scalar | Upper-case hexadecimal of the bytes |
-| [`ifnull(X, Y)`](./scalar#ifnull) | scalar | `X` if not NULL, else `Y` |
 | [`if(COND, X, …)`](./scalar#iif) | scalar | Same as `iif` |
+| [`ifnull(X, Y)`](./scalar#ifnull) | scalar | `X` if not NULL, else `Y` |
 | [`iif(COND, X, Y)`](./scalar#iif) | scalar | `X` if `COND` is true, else `Y` |
 | [`instr(X, Y)`](./string#instr) | scalar | Position of `Y` in `X` |
 | [`julianday(TIME, MOD, …)`](./datetime#julianday) | scalar | Julian day number |
 | [`kurtosis(X)`](./aggregate#skewness) | aggregate | Sample excess kurtosis |
 | [`kurtosis_pop(X)`](./aggregate#skewness) | aggregate | Population excess kurtosis |
 | [`lag(X [, N [, DEFAULT]])`](./window#lag) | window | Value from an earlier row |
+| [`last(X [, KEY])`](./extensions#first-last) | aggregate | Value of the last row, or at the largest `KEY` |
 | [`last_insert_rowid()`](./scalar#last_insert_rowid) | scalar | Rowid of the last inserted row |
 | [`last_value(X)`](./window#last_value) | window | Value from the last row of the frame |
 | [`lead(X [, N [, DEFAULT]])`](./window#lead) | window | Value from a later row |
 | [`length(X)`](./string#length) | scalar | Characters in text, bytes in a blob |
 | [`likelihood(X, P)`](./scalar#likelihood) | scalar | Returns `X` (planner hint, ignored) |
 | [`likely(X)`](./scalar#likely) | scalar | Returns `X` (planner hint, ignored) |
+| [`list_max(L)`](./extensions#lists) | scalar | Greatest number in a list |
+| [`list_mean(L)`](./extensions#lists) | scalar | Mean of a list |
+| [`list_min(L)`](./extensions#lists) | scalar | Least number in a list |
+| [`list_sum(L)`](./extensions#lists) | scalar | Sum of a list |
 | [`ln(X)`](./math#ln) | scalar | Natural logarithm |
 | [`log(X)`, `log(B, X)`](./math#ln) | scalar | Base-10 logarithm, or to base `B` |
 | [`log10(X)`](./math#ln) | scalar | Base-10 logarithm |
 | [`log2(X)`](./math#ln) | scalar | Base-2 logarithm |
 | [`lower(X)`](./string#lower) | scalar | ASCII lower case |
+| [`lower_unicode(X)`](./extensions#text) | scalar | Lower case of every script |
 | [`ltrim(X [, CHARS])`](./string#ltrim) | scalar | Remove characters from the start |
+| [`make_date(Y, M, D)`](./extensions#dates) | scalar | Date from its parts |
+| [`make_datetime(Y, M, D, …)`](./extensions#dates) | scalar | Date and time from its parts |
 | [`max(X)`](./aggregate#max) | aggregate | Largest value |
 | [`max(X, Y, …)`](./scalar#max) | scalar | Largest argument |
 | [`median(X)`](./aggregate#median) | aggregate | Median |
@@ -108,6 +119,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`read_parquet(LOCATION, …)`](./table-valued#read_parquet) | table-valued | Rows of a Parquet file (`@smaltdb/parquet` plugin) |
 | [`replace(X, Y, Z)`](./string#replace) | scalar | Replace every `Y` in `X` with `Z` |
 | [`round(X [, DIGITS])`](./math#round) | scalar | Round to `DIGITS` decimal places |
+| [`round_even(X [, DIGITS])`](./extensions#round_even) | scalar | Round with halves to even |
 | [`row_number()`](./window#row_number) | window | Row number within the partition |
 | [`rtrim(X [, CHARS])`](./string#rtrim) | scalar | Remove characters from the end |
 | [`sign(X)`](./math#sign) | scalar | -1, 0 or 1 |
@@ -128,6 +140,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`tanh(X)`](./math#sinh) | scalar | Hyperbolic tangent |
 | [`time(TIME, MOD, …)`](./datetime#time) | scalar | Time as `HH:MM:SS` |
 | [`timediff(A, B)`](./datetime#timediff) | scalar | Difference between two times |
+| [`to_zone(TS, ZONE)`](./extensions#zones) | scalar | Wall-clock time in a zone of a UTC instant |
 | [`total(X)`](./aggregate#total) | aggregate | Sum; 0 when there are no values |
 | [`total_changes()`](./scalar#total_changes) | scalar | Rows changed since the connection opened |
 | [`trim(X [, CHARS])`](./string#trim) | scalar | Remove characters from both ends |
@@ -137,9 +150,11 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`unixepoch(TIME, MOD, …)`](./datetime#unixepoch) | scalar | Seconds since 1970-01-01 |
 | [`unlikely(X)`](./scalar#unlikely) | scalar | Returns `X` (planner hint, ignored) |
 | [`upper(X)`](./string#upper) | scalar | ASCII upper case |
+| [`upper_unicode(X)`](./extensions#text) | scalar | Upper case of every script |
 | [`var_pop(X)`](./aggregate#variance) | aggregate | Population variance |
 | [`var_samp(X)`, `variance(X)`](./aggregate#variance) | aggregate | Sample variance |
 | [`zeroblob(N)`](./scalar#zeroblob) | scalar | `N` zero bytes |
+| [`zone_offset(TS, ZONE)`](./extensions#zones) | scalar | Offset of a zone from UTC |
 
 Every aggregate function can also be used as a window function with `OVER`; see [Window functions](./window#aggregate-functions-as-window-functions).
 
