@@ -245,9 +245,23 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
         return bindOffset(bindTemporal(e.right, scope), intervalOffset(e.left, false));
       }
       if (e.op === '=' && e.right.kind === 'call' && e.right.name === 'any' && e.right.args.length === 1 && !e.right.over) {
-        // `v = ANY (list)` (Postgres; smaltdb ADR 0022): whether an element of the list equals v.
+        // `v = ANY (list)` (Postgres; smaltdb ADR 0022): whether an element of the list equals v, in three-valued logic
+        // as PostgreSQL's (smaltql#49): NULL for a NULL v or list, and when nothing matches but the list holds a NULL.
         const l = listArg(bindExpr(e.right.args[0]!, scope));
-        return call('cast_integer', [call('list_contains', [l, bindExpr(e.left, scope)], 'int')], 'int');
+        const v = bindExpr(e.left, scope);
+        const contains = (x: BoundExpr): BoundExpr => call('list_contains', [l, x], 'int');
+        const isNull = (x: BoundExpr): BoundExpr => ({ k: 'isNull', arg: x, not: false, type: 'int' }) as BoundExpr;
+        return {
+          k: 'case',
+          whens: [
+            { when: isNull(v), then: lit(null, 'null') },
+            { when: isNull(l), then: lit(null, 'null') },
+            { when: contains(v), then: lit(1, 'int') },
+            { when: contains(lit(null, 'null')), then: lit(null, 'null') },
+          ],
+          else: lit(0, 'int'),
+          type: 'int',
+        } as BoundExpr;
       }
       return bindBinary(e.op, bindExpr(e.left, scope), bindExpr(e.right, scope));
     case 'between': {
@@ -559,10 +573,13 @@ function intervalOffset(e: CallExpr, negate: boolean): BoundExpr {
   const out = parts.map(([, n, unit]) => {
     const u = INTERVAL_UNITS[unit!.toLowerCase()];
     if (!u) throw new SmaltError('SMALT_ERROR', `invalid INTERVAL unit: ${unit}`);
-    const v = negate ? -Number(n) : Number(n);
-    return `${v}${u}`;
+    return { v: negate ? -Number(n) : Number(n), u };
   });
-  return lit(out.join(''), 'text');
+  // The engine's offset text takes one sign for the whole offset (`-1h30m`), so the parts share one (smaltql#49).
+  const nonzero = out.filter((p) => p.v !== 0);
+  if (nonzero.some((p) => p.v < 0) && nonzero.some((p) => p.v > 0)) throw new SmaltError('SMALT_ERROR', `invalid INTERVAL: '${text}' mixes positive and negative parts`);
+  const sign = nonzero.some((p) => p.v < 0) ? '-' : '';
+  return lit(sign + out.map((p) => `${Math.abs(p.v)}${p.u}`).join(''), 'text');
 }
 
 /** The fields of a `struct<name T, …>` type, in order. */

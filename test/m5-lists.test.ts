@@ -15,6 +15,12 @@ describe('lists in SQL (ADR 0022 step 5)', () => {
     ['array_contains(ARRAY[1, 2], 2)', 1],
     ['2 = ANY (ARRAY[1, 2])', 1],
     ['3 = ANY (ARRAY[1, 2])', 0],
+    // Three-valued, as PostgreSQL (smaltql#49).
+    ['NULL = ANY (ARRAY[1])', null],
+    ['3 = ANY (ARRAY[1, NULL])', null],
+    ['1 = ANY (ARRAY[1, NULL])', 1],
+    ['1 = ANY (ARRAY[])', 0],
+    ['array_contains(ARRAY[1, NULL], NULL)', 1],
     ['array_cat(ARRAY[1], ARRAY[2, 3])', '[1,2,3]'],
     ["array_to_string(ARRAY['a', 'b'], '-')", 'a-b'],
     ['array_sort(ARRAY[3, 1, 2])', '[1,2,3]'],

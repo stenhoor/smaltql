@@ -30,6 +30,10 @@ describe('unnest (ADR 0022 step 6)', () => {
     expect(d.prepare('SELECT t.id, u.tag, t2.id FROM t, unnest(t.tags) AS u(tag) JOIN t AS t2 ON t2.id = t.id + 1 WHERE u.tag = \'b\'').all()).toEqual([[1, 'b', 2]]);
   });
 
+  it("= ANY of a list column: NULL for a NULL list (smaltql#49)", async () => {
+    expect((await db()).prepare("SELECT id, 'a' = ANY (tags) FROM t ORDER BY id").all()).toEqual([[1, 1], [2, 0], [3, null], [4, 0]]);
+  });
+
   it('errors', async () => {
     const d = await db();
     expect(() => d.prepare("SELECT * FROM unnest('a')").all()).toThrow(/unnest takes a list/);

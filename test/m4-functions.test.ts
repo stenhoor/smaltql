@@ -37,6 +37,11 @@ describe('SQL spellings of the engine operations (ADR 0022 step 4)', () => {
     expect(rows).toEqual([[1, null], [2, 10], [3, 10]]);
   });
 
+  it('IGNORE NULLS on a function that does not take it is a SQL error naming it', () => {
+    expect(() => all('SELECT sum(x) IGNORE NULLS OVER () FROM (SELECT 1 AS x)')).toThrow(/IGNORE NULLS is not valid for sum\(\)/);
+    expect(() => all('SELECT row_number() IGNORE NULLS OVER () FROM (SELECT 1 AS x)')).toThrow(/not valid for row_number\(\)/);
+  });
+
   it('IGNORE NULLS needs OVER', () => {
     expect(() => all('SELECT first(x) IGNORE NULLS FROM (SELECT 1 AS x)')).toThrow(/only valid with window functions/);
   });

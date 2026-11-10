@@ -11,7 +11,7 @@ from 1. These functions are smaltdb extensions: SQLite has no lists
 | [`cardinality(L)`, `array_length(L)`](#cardinality) | The number of elements |
 | [`list_extract(L, I)`](#list_extract) | The element at position `I` |
 | [`array_slice(L, FROM, TO)`](#array_slice) | The elements from `FROM` to `TO` |
-| [`array_contains(L, V)`, `V = ANY (L)`](#array_contains) | 1 if an element equals `V`, else 0 |
+| [`array_contains(L, V)`, `V = ANY (L)`](#array_contains) | 1 if an element equals `V`, else 0 (`= ANY`: three-valued) |
 | [`array_cat(A, B)`](#array_cat) | The two lists, one after the other |
 | [`array_to_string(L, SEP)`](#array_to_string) | The elements as text, joined by `SEP` |
 | [`array_sort(L)`](#array_sort) | The elements sorted |
@@ -125,17 +125,18 @@ V = ANY (L)
 1 if an element of `L` equals `V`, else 0.
 
 - **Returns:** 1 or 0.
-- **NULL:** NULL for a NULL list. A NULL `V` asks whether the list has a NULL element, so `NULL = ANY (L)` is 1 or 0,
-  not NULL as in PostgreSQL.
+- **NULL:** the two differ.
+  - `V = ANY (L)` is three-valued, as in PostgreSQL and as SQL's `IN` is. It is NULL for a NULL `V` or list, and when no element equals `V` but `L` holds a NULL.
+  - `array_contains` is NULL for a NULL list only. A NULL `V` asks whether the list has a NULL element, so it gives 1 or 0.
 
 ```sql
 SELECT array_contains(ARRAY[1, 2], 2) AS has_two, 3 = ANY (ARRAY[1, 2]) AS has_three,
-       array_contains(ARRAY[1, NULL], NULL) AS has_null, NULL = ANY (ARRAY[1]) AS null_any;
+       3 = ANY (ARRAY[1, NULL]) AS maybe, array_contains(ARRAY[1, NULL], NULL) AS has_null;
 ```
 
-| has_two | has_three | has_null | null_any |
+| has_two | has_three | maybe | has_null |
 | --- | --- | --- | --- |
-| 1 | 0 | 1 | 0 |
+| 1 | 0 | NULL | 1 |
 
 ## array_cat {#array_cat}
 
