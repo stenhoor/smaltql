@@ -34,11 +34,32 @@ SELECT to_zone(make_datetime(2026, 7, 1, 12), 'Europe/Paris') AS paris,
 
 ## Lists {#lists}
 
+A list shows in SQL as its JSON text. `ARRAY[a, b, …]` builds one, and `array_agg(X)` gathers a group's values into one, in the group's order. Positions count from 1, and negative positions from the end.
+
+| Function | Gives |
+| --- | --- |
+| `cardinality(L)`, `array_length(L)` | the number of elements |
+| `list_extract(L, I)` | the element at `I` (NULL out of range, or for 0) |
+| `array_slice(L, FROM, TO)` | the elements from `FROM` to `TO`, both included |
+| `array_contains(L, V)`, `V = ANY (L)` | 1 if an element equals `V`, else 0 |
+| `array_cat(A, B)` | `A`'s elements, then `B`'s |
+| `array_to_string(L, SEP)` | the non-NULL elements as text, joined by `SEP` |
+| `array_sort(L)`, `array_distinct(L)`, `array_reverse(L)` | the elements sorted (NULLs first), without repeats, or reversed |
+
+```sql
+SELECT ARRAY[3, 1, 2] AS l, cardinality(ARRAY[3, 1, 2]) AS n, list_extract(ARRAY[3, 1, 2], -1) AS last_one,
+       2 = ANY (ARRAY[3, 1, 2]) AS has_two, array_sort(ARRAY[3, 1, 2]) AS sorted;
+```
+
+| l | n | last_one | has_two | sorted |
+| --- | --- | --- | --- | --- |
+| [3,1,2] | 3 | 2 | 1 | [1,2,3] |
+
 `list_sum`, `list_mean`, `list_min` and `list_max` reduce a list's non-NULL numbers: the sum (0 for none), the mean, the least and the greatest (NULL for none).
 
 ```sql
-SELECT list_sum(list_of(1, 2, 3)) AS total, list_mean(list_of(1, 2, 3)) AS mean,
-       list_min(list_of(3, 1, 2)) AS least, list_max(list_of(3, 1, 2)) AS greatest;
+SELECT list_sum(ARRAY[1, 2, 3]) AS total, list_mean(ARRAY[1, 2, 3]) AS mean,
+       list_min(ARRAY[3, 1, 2]) AS least, list_max(ARRAY[3, 1, 2]) AS greatest;
 ```
 
 | total | mean | least | greatest |
