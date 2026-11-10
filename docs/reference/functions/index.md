@@ -58,6 +58,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`CURRENT_DATE`](./datetime#current_date) | keyword | Current UTC date, `YYYY-MM-DD` |
 | [`CURRENT_TIME`](./datetime#current_date) | keyword | Current UTC time, `HH:MM:SS` |
 | [`CURRENT_TIMESTAMP`](./datetime#current_date) | keyword | Current UTC date and time, `YYYY-MM-DD HH:MM:SS` |
+| [`DATE 'TEXT'`](./extensions#dates) | keyword | A date literal |
 | [`date(TIME, MOD, …)`](./datetime#date) | scalar | Date as `YYYY-MM-DD` |
 | [`date_part(FIELD, X)`](./extensions#dates) | scalar | A part of a date or time |
 | [`date_trunc(UNIT, X)`](./extensions#dates) | scalar | A date or time cut to a unit |
@@ -77,6 +78,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`ifnull(X, Y)`](./scalar#ifnull) | scalar | `X` if not NULL, else `Y` |
 | [`iif(COND, X, Y)`](./scalar#iif) | scalar | `X` if `COND` is true, else `Y` |
 | [`instr(X, Y)`](./string#instr) | scalar | Position of `Y` in `X` |
+| [`INTERVAL 'TEXT'`](./extensions#dates) | keyword | Added to or subtracted from a date or time |
 | [`isnan(X)`](./extensions#isnan) | scalar | 1 if `X` is NaN |
 | [`julianday(TIME, MOD, …)`](./datetime#julianday) | scalar | Julian day number |
 | [`kurtosis(X)`](./aggregate#skewness) | aggregate | Sample excess kurtosis |
@@ -163,6 +165,7 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`tanh(X)`](./math#sinh) | scalar | Hyperbolic tangent |
 | [`time(TIME, MOD, …)`](./datetime#time) | scalar | Time as `HH:MM:SS` |
 | [`timediff(A, B)`](./datetime#timediff) | scalar | Difference between two times |
+| [`TIMESTAMP 'TEXT'`](./extensions#dates) | keyword | A date and time literal |
 | [`to_zone(TS, ZONE)`](./extensions#zones) | scalar | Wall-clock time in a zone of a UTC instant |
 | [`total(X)`](./aggregate#total) | aggregate | Sum; 0 when there are no values |
 | [`total_changes()`](./scalar#total_changes) | scalar | Rows changed since the connection opened |
