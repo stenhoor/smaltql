@@ -398,6 +398,17 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
   return withMeaning(sqlValue(call(fn, args, type), engineFunctions.resultType(fn, argTypes)), meaning);
 }
 
+/**
+ * A value written into a column stored as a list, struct, date or time: the value under SQL's text of it, so the
+ * column takes it as its own type (smaltdb ADR 0022, step 1). Any other column takes `b` as it is.
+ */
+export function forColumn<E>(e: E, storageType: string): E {
+  const b = e as unknown as BoundExpr;
+  return STORED_TYPED.has(storageType) ? (((temporalUnder(b) ?? nestedUnder(b) ?? b) as unknown) as E) : e;
+}
+
+const STORED_TYPED = new Set(['LIST', 'STRUCT', 'DATE', 'DATETIME', 'TIME', 'DURATION']);
+
 /** Functions whose arguments are the engine's dates and times, not SQL's text of them. */
 const TYPED_ARGS = new Set([
   'year', 'month', 'day', 'weekday', 'day_of_year', 'hour', 'minute', 'second', 'microsecond',
