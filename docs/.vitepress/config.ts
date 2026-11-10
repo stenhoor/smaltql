@@ -116,6 +116,7 @@ export default defineConfig({
           { text: 'Date and time', link: '/reference/functions/datetime' },
           { text: 'Aggregate', link: '/reference/functions/aggregate' },
           { text: 'Window', link: '/reference/functions/window' },
+          { text: 'smaltdb extensions', link: '/reference/functions/extensions' },
           { text: 'Table-valued', link: '/reference/functions/table-valued' },
         ],
       },
