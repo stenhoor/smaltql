@@ -240,6 +240,8 @@ export type SelectCore = SelectCoreSelect | SelectCoreValues;
 export interface SelectCoreSelect extends Node {
   kind: 'select';
   distinct: boolean;
+  /** `DISTINCT ON (exprs)`: keep the first row of each set of rows equal on these. */
+  distinctOn?: Expr[];
   columns: ResultColumn[];
   from?: FromItem;
   where?: Expr;

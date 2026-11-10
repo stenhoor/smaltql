@@ -732,6 +732,17 @@ class FrontEnd {
       }
     }
 
+    // DISTINCT ON (smaltdb ADR 0022): its expressions as columns after the others, kept equal by the engine's distinct.
+    const on: number[] = [];
+    const onCollations: string[] = [];
+    for (const e of core.distinctOn ?? []) {
+      const b = bindExpr(e, exprScope);
+      const c = metadata(b, this.catalog.catalog);
+      on.push(bound.length + extras.length);
+      extras.push(b);
+      onCollations.push(collationName(c.collSrc !== CollSrc.None ? c.collation : Collation.Binary));
+    }
+
     let having: PlanExpr | undefined;
     if (core.having) {
       if (!agg) throw new SmaltError('SMALT_ERROR', 'a GROUP BY clause is required before HAVING');
@@ -742,8 +753,15 @@ class FrontEnd {
     if (having) root = { op: 'filter', input: root, pred: having };
     for (const w of windows) root = { op: 'window', input: root, partition: w.partition, order: w.order, frame: w.frame, calls: w.calls };
     root = { op: 'project', input: root, exprs: [...bound, ...extras] };
-    if (core.distinct) root = { op: 'distinct', input: root, collations: columns.map((c) => collationName(c.collation)) };
-    if (keys.length) root = { op: 'sort', input: root, keys };
+    if (on.length) {
+      // Sorted first, so the kept row of each set is the first in ORDER BY's order; the kept rows keep that order.
+      if (keys.length) root = { op: 'sort', input: root, keys };
+      const collations = [...bound.map((_, i) => collationName(columns[i]!.collation)), ...extras.map((_, i) => onCollations[on.indexOf(bound.length + i)] ?? 'binary')];
+      root = { op: 'distinct', input: root, collations, on, keep: 'first' } as PlanOp;
+    } else {
+      if (core.distinct) root = { op: 'distinct', input: root, collations: columns.map((c) => collationName(c.collation)) };
+      if (keys.length) root = { op: 'sort', input: root, keys };
+    }
     if (extras.length) root = { op: 'project', input: root, exprs: columns.map((c, i) => ({ k: 'col', input: 0, index: i, depth: 0, type: c.type, collation: collationName(c.collation) })) };
     return { plan: root, columns };
   }

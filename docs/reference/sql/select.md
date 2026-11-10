@@ -395,3 +395,18 @@ SELECT count(*) AS rows FROM n TABLESAMPLE BERNOULLI (10) REPEATABLE (1);
 | rows |
 | --- |
 | 10 |
+
+## DISTINCT ON {#distinct-on}
+
+`SELECT DISTINCT ON (exprs) …` keeps one row of each set of rows whose `exprs` are equal: the first in `ORDER BY`'s order (a smaltdb extension, as in Postgres). The rows come in that order. Put the `exprs` first in `ORDER BY`, then what picks the row; the `exprs` need not be result columns.
+
+```sql
+CREATE TABLE r(shop TEXT, day INTEGER, amt INTEGER);
+INSERT INTO r VALUES ('a', 1, 10), ('a', 3, 30), ('b', 2, 20), ('b', 1, 5);
+SELECT DISTINCT ON (shop) shop, day, amt FROM r ORDER BY shop, day DESC;
+```
+
+| shop | day | amt |
+| --- | --- | --- |
+| a | 3 | 30 |
+| b | 2 | 20 |
