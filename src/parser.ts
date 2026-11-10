@@ -1703,7 +1703,16 @@ class Parser {
           // The span of a parenthesized expression includes its parentheses.
           e.pos = pos;
           e.end = this.ends[this.p - 1];
-          return e;
+          // `(s).name` (Postgres; smaltdb ADR 0022): a struct's field.
+          let x: A.Expr = e;
+          while (this.isOp('.') && this.kinds[this.p + 1] !== TK_OP) {
+            this.p++;
+            const fpos = this.pos();
+            const name = this.name();
+            const field: A.Expr = { kind: 'literal', pos: fpos, value: name, isReal: false, end: this.ends[this.p - 1] };
+            x = { kind: 'call', pos, name: '#field', args: [x, field], star: false, distinct: false, filter: undefined, over: undefined, orderBy: undefined, end: this.ends[this.p - 1] };
+          }
+          return x;
         }
         this.fail();
     }

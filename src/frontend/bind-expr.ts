@@ -472,6 +472,21 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       const length = call('add', [call('sub', [to, from], 'int'), lit(1, 'int')], 'int');
       return withMeaning(sqlValue(call('list_slice', [l, offset, length], typeOf(l)), undefined), plain);
     }
+    case '#field': {
+      // `(s).name` (Postgres): the engine's struct_field, the name resolved to its index from the struct's type.
+      const sv = bindExpr(args[0]!, scope);
+      const st = nestedUnder(sv) ?? sv;
+      const t = typeOf(st);
+      if (!t.startsWith('struct<')) throw new SmaltError('SMALT_MISMATCH', `(…).${String((args[1] as { value: unknown }).value)} needs a struct, not ${t}`);
+      const fields = structFields(t);
+      const want = String((args[1] as { value: unknown }).value).toLowerCase();
+      const i = fields.findIndex((f) => f.name.toLowerCase() === want);
+      if (i < 0) throw new SmaltError('SMALT_ERROR', `no such field: ${want} (fields: ${fields.map((f) => f.name).join(', ')})`);
+      // The engine types a field from the call only where it can tell it from the struct alone, so a field that is
+      // itself a list or struct would reach SQL as its bytes: not supported until the engine takes the declared type.
+      if (isNested(fields[i]!.type)) throw new SmaltError('SMALT_UNSUPPORTED', `field ${fields[i]!.name} is a ${fields[i]!.type.slice(0, fields[i]!.type.indexOf('<'))}: (…).${fields[i]!.name} of a list or struct field is not supported yet`);
+      return withMeaning(sqlValue(call('struct_field', [st, lit(i, 'int')], fields[i]!.type), undefined), plain);
+    }
     case '#interval':
       throw new SmaltError('SMALT_ERROR', 'an INTERVAL can only be added to or subtracted from a date or time');
     case 'now':
@@ -536,6 +551,26 @@ function intervalOffset(e: CallExpr, negate: boolean): BoundExpr {
     return `${v}${u}`;
   });
   return lit(out.join(''), 'text');
+}
+
+/** The fields of a `struct<name T, …>` type, in order. */
+function structFields(t: StaticType): { name: string; type: StaticType }[] {
+  const body = t.slice(7, -1);
+  const out: { name: string; type: StaticType }[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i <= body.length; i++) {
+    const c = body[i];
+    if (c === '<') depth++;
+    else if (c === '>') depth--;
+    else if ((c === ',' && depth === 0) || i === body.length) {
+      const part = body.slice(start, i).trim();
+      const sp = part.indexOf(' ');
+      if (sp > 0) out.push({ name: part.slice(0, sp), type: part.slice(sp + 1).trim() as StaticType });
+      start = i + 1;
+    }
+  }
+  return out;
 }
 
 /** The fields of `EXTRACT` and `date_part`, and the engine function each reads. */
