@@ -482,9 +482,6 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       const want = String((args[1] as { value: unknown }).value).toLowerCase();
       const i = fields.findIndex((f) => f.name.toLowerCase() === want);
       if (i < 0) throw new SmaltError('SMALT_ERROR', `no such field: ${want} (fields: ${fields.map((f) => f.name).join(', ')})`);
-      // The engine types a field from the call only where it can tell it from the struct alone, so a field that is
-      // itself a list or struct would reach SQL as its bytes: not supported until the engine takes the declared type.
-      if (isNested(fields[i]!.type)) throw new SmaltError('SMALT_UNSUPPORTED', `field ${fields[i]!.name} is a ${fields[i]!.type.slice(0, fields[i]!.type.indexOf('<'))}: (…).${fields[i]!.name} of a list or struct field is not supported yet`);
       return withMeaning(sqlValue(call('struct_field', [st, lit(i, 'int')], fields[i]!.type), undefined), plain);
     }
     case '#interval':
