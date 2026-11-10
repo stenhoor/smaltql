@@ -670,7 +670,21 @@ class Parser {
       }
       this.expectOp(')');
       const name = q.schema !== undefined ? `${q.schema}.${q.name}` : q.name;
-      const ref: A.FunctionRef = { kind: 'function', pos, name: name.toLowerCase(), args, alias: this.optAlias(), end: this.ends[this.p - 1] };
+      // `WITH ORDINALITY` and `AS alias(columns)` (Postgres; smaltdb ADR 0022, for unnest).
+      let ordinality = false;
+      if (this.isKw('WITH') && this.kinds[this.p + 1] === TK_ID && String(this.vals[this.p + 1]).toUpperCase() === 'ORDINALITY') {
+        this.p += 2;
+        ordinality = true;
+      }
+      const alias = this.optAlias();
+      let columns: string[] | undefined;
+      if (alias !== undefined && this.acceptOp('(')) {
+        columns = [];
+        do columns.push(this.name());
+        while (this.acceptOp(','));
+        this.expectOp(')');
+      }
+      const ref: A.FunctionRef = { kind: 'function', pos, name: name.toLowerCase(), args, alias, ...(columns ? { columns } : {}), ...(ordinality ? { ordinality } : {}), end: this.ends[this.p - 1] };
       if (named) ref.named = named;
       return ref;
     }

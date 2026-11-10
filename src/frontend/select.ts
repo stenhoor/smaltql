@@ -984,13 +984,25 @@ class FrontEnd {
     if (items.some((it) => (it.using || it.natural) && (it.joinType === 'RIGHT' || it.joinType === 'FULL')) && items.some((it) => it.joinType === 'RIGHT' || it.joinType === 'FULL')) {
       throw new SmaltError('SMALT_UNSUPPORTED', 'USING / NATURAL with RIGHT or FULL JOIN is not supported yet');
     }
-    let root = inputs[0];
+    let root = this.unnests.has(0) ? this.explodeOver({ op: 'values', rows: [[]], types: [] }, scope, 0, this.unnests.get(0)!, false) : inputs[0];
     // Inner-join conditions that read a later source of this FROM apply once that source is joined: in the WHERE, as
     // SQLite treats them. An outer join's condition cannot (SQLite: "ON clause references tables to its right").
     const later: Expr[] = [];
     for (let p = 1; p < items.length; p++) {
       const it = items[p];
       const outer = it.joinType === 'LEFT' || it.joinType === 'RIGHT' || it.joinType === 'FULL';
+      const u = this.unnests.get(p);
+      if (u) {
+        // `FROM t, unnest(…)` drops rows whose list is empty or NULL; `LEFT JOIN unnest(…) ON true` keeps them, with a
+        // NULL element (ADR 0022, decision 3). Any other ON condition of an inner join filters after the joins.
+        if (it.joinType === 'RIGHT' || it.joinType === 'FULL') throw new SmaltError('SMALT_UNSUPPORTED', `${it.joinType} JOIN unnest is not supported`);
+        const left = it.joinType === 'LEFT';
+        const isTrue = (c: Expr): boolean => c.kind === 'literal' && c.value === 1;
+        if (left && ons[p].some((c) => !isTrue(c))) throw new SmaltError('SMALT_UNSUPPORTED', 'LEFT JOIN unnest takes ON true');
+        if (!left) later.push(...ons[p].filter((c) => !isTrue(c)));
+        root = this.explodeOver(root, scope, p, u, left);
+        continue;
+      }
       const parts: PlanExpr[] = [];
       let asof: { left: PlanExpr; right: PlanExpr; direction: 'backward' | 'forward' } | undefined;
       scope.onSource = p;
@@ -1067,12 +1079,60 @@ class FrontEnd {
     out.push({ item, joinType, on, using, natural });
   }
 
+  /** The `unnest(list)` FROM items by position: the list, bound over the items before it, and its element type. */
+  private unnests = new Map<number, { list: BoundExpr; listType: StaticType; ordinality: boolean }>();
+
+  /**
+   * `unnest(list) [WITH ORDINALITY] [AS u(element [, position])]` (Postgres; smaltdb ADR 0022): its columns, the
+   * element and the position. The list may read the FROM items before it; the join loop explodes it over them.
+   */
+  private unnestSource(item: Extract<FromItem, { kind: 'function' }>, scope: FeScope, position: number): PlanOp {
+    if (item.args.length !== 1 || item.named) throw new SmaltError('SMALT_UNSUPPORTED', 'unnest takes one list (several lists are not supported)');
+    const b = bindAst(item.args[0]!, this.compileScope(scope));
+    const list = unwrapNested(b);
+    const listType = typeOf(list);
+    if (!listType.startsWith('list<')) throw new SmaltError('SMALT_MISMATCH', `unnest takes a list, not ${listType}`);
+    const element = listType.slice(5, -1) as StaticType;
+    const names = item.columns ?? [];
+    if (names.length > (item.ordinality ? 2 : 1)) throw new SmaltError('SMALT_ERROR', `unnest has ${item.ordinality ? 2 : 1} columns but ${names.length} names were given`);
+    const col = (name: string, type: StaticType): FeColumn => ({ name, type, collation: Collation.Binary, affinity: 'NONE', declType: '' });
+    const cols = [col(names[0] ?? 'unnest', element)];
+    if (item.ordinality) cols.push(col(names[1] ?? 'ordinality', 'int'));
+    this.unnests.set(position, { list, listType, ordinality: item.ordinality === true });
+    this.push(scope, { name: item.alias ?? 'unnest', cols, offset: 0, rowid: null, position, width: cols.length, hidden: NO_HIDDEN });
+    return { op: 'values', rows: [], types: [] };
+  }
+
+  /**
+   * The FROM row so far (sources before `p`) with unnest `u` exploded over it: one row per element, in the input's
+   * order then the list's; the element, then its position from 1 with WITH ORDINALITY.
+   */
+  private explodeOver(root: PlanOp, scope: FeScope, p: number, u: { list: BoundExpr; listType: StaticType; ordinality: boolean }, keep: boolean): PlanOp {
+    const at = scope.sources[p]!.offset;
+    const identity: PlanExpr[] = [];
+    for (const s of scope.sources.slice(0, p)) {
+      for (let i = 0; i < s.width; i++) {
+        const c = s.cols[i];
+        identity.push({ k: 'col', input: 0, index: s.offset + i, depth: 0, type: c ? c.type : 'int', collation: collationName(c ? c.collation : Collation.Binary) });
+      }
+    }
+    const input: PlanOp = { op: 'project', input: root, exprs: [...identity, u.list as PlanExpr] };
+    let op: PlanOp = { op: 'explode', input, column: at, type: u.listType, ...(u.ordinality ? { position: true } : {}), emptyAsNull: keep, keepNulls: keep } as PlanOp;
+    if (u.ordinality) {
+      const element = u.listType.slice(5, -1) as StaticType;
+      const pos: PlanExpr = { k: 'call', fn: 'add', args: [{ k: 'col', input: 0, index: at + 1, depth: 0, type: 'int', collation: 'binary' }, { k: 'lit', value: 1, type: 'int' }], type: 'int' };
+      op = { op: 'project', input: op, exprs: [...identity, { k: 'col', input: 0, index: at, depth: 0, type: element, collation: 'binary' }, pos] };
+    }
+    return op;
+  }
+
   /** Add a FROM item's columns to the scope; returns the plan that produces its rows. */
   private addSource(item: FromItem, scope: FeScope): PlanOp {
     const position = scope.sources.length;
     if (item.kind === 'join') throw new SmaltError('SMALT_ERROR', 'unexpected join');
     // External data: external tables and read_csv()-style functions (their columns come from the data).
     if (item.kind === 'function' && this.catalog.isExternalFunction?.(item.name)) return this.externalFunction(item, scope, position);
+    if (item.kind === 'function' && item.name === 'unnest') return this.unnestSource(item, scope, position);
     if (item.kind === 'table' && (!item.schema || item.schema.toLowerCase() === 'main') && !(!item.schema && scope.findCte(item.name))) {
       const ext = this.catalog.externalColumns?.(item.name);
       if (ext) {
@@ -1385,6 +1445,9 @@ class FrontEnd {
           a.right = ex(a.right);
         }
         break;
+      case 'explode':
+        this.resolveRefs(o.input);
+        break;
       case 'setop':
         this.resolveRefs(o.inputs[0]);
         this.resolveRefs(o.inputs[1]);
@@ -1500,3 +1563,8 @@ class FrontEnd {
   }
 }
 
+/** A list or struct column's value under its JSON text. */
+function unwrapNested(b: BoundExpr): BoundExpr {
+  const c = b as { k: string; fn?: string; args?: BoundExpr[] };
+  return c.k === 'call' && c.fn === 'cast_text' && c.args?.length === 1 && /^(list|struct)</.test(typeOf(c.args[0]!)) ? c.args[0]! : b;
+}

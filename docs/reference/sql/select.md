@@ -428,3 +428,19 @@ SELECT trades.t, quotes.px FROM trades ASOF LEFT JOIN quotes ON trades.sym = quo
 | 1 | NULL |
 | 5 | 1.5 |
 | 10 | 2.5 |
+
+## unnest {#unnest}
+
+`unnest(list)` in `FROM` gives one row per element of a list (a smaltdb extension, as in Postgres). The list may read the `FROM` items before it, so `FROM t, unnest(t.tags) AS u(tag)` gives each row of `t` once per tag, in `t`'s order and then the list's. A row whose list is empty or NULL gives no row; `LEFT JOIN unnest(t.tags) AS u(tag) ON true` keeps it, with a NULL element. `WITH ORDINALITY` adds the element's position, from 1. Without an alias the columns are `unnest` and `ordinality`.
+
+```sql
+SELECT u.tag, u.pos FROM unnest(ARRAY['a', 'b', 'c']) WITH ORDINALITY AS u(tag, pos);
+```
+
+| tag | pos |
+| --- | --- |
+| a | 1 |
+| b | 2 |
+| c | 3 |
+
+`unnest` takes one list: several lists, and `unnest` in the select list, are not supported.
