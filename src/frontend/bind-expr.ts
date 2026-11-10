@@ -273,6 +273,11 @@ export function bindExpr(e: Expr, scope: CompileScope): BoundExpr {
       const x = bindExpr(e.expr, scope);
       const pat = bindExpr(e.pattern, scope);
       const esc = e.escape ? bindExpr(e.escape, scope) : undefined;
+      if (e.op === 'REGEXP' && !esc) {
+        // `x REGEXP p` (smaltdb ADR 0022): a JavaScript regular expression, as `regexp_like(x, p)`.
+        const m = call('cast_integer', [call('regex_match', [x, pat], 'int')], 'int');
+        return e.not ? call('cast_integer', [opaque({ k: 'not', type: 'int', arg: m })], 'int') : m;
+      }
       if (e.op !== 'LIKE' && e.op !== 'GLOB') throw new SmaltError('SMALT_ERROR', `no such function: ${e.op.toLowerCase()}`);
       const like = call(e.op === 'GLOB' ? 'glob' : 'like', esc ? [x, pat, esc] : [x, pat], 'int');
       return e.not ? opaque({ k: 'not', type: 'int', arg: like }) : like;
@@ -363,6 +368,8 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
     // A plain call, so plans carry no closure: the clock is read when the statement runs.
     return call(name, [], 'text');
   }
+  const special = bindSpelling(name, e.args, scope);
+  if (special) return special;
   const def = scalarFunction(name);
   if (!def) {
     const win = windowFunction(name);
@@ -408,6 +415,42 @@ export function forColumn<E>(e: E, storageType: string): E {
 }
 
 const STORED_TYPED = new Set(['LIST', 'STRUCT', 'DATE', 'DATETIME', 'TIME', 'DURATION']);
+
+/**
+ * SQL spellings that are more than another name (smaltdb ADR 0022): Postgres's `regexp_replace` replaces every match
+ * with the `g` flag, and `isnan` compares with NaN, which equals itself in the engine's order.
+ */
+function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope): BoundExpr | undefined {
+  const arity = (min: number, max: number): void => {
+    if (args.length < min || args.length > max) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
+  };
+  const bound = (): BoundExpr[] => args.map((a) => bindExpr(a, scope));
+  const plain = { collation: Collation.Binary, collSrc: CollSrc.None, affinity: 'NONE' as const };
+  switch (name) {
+    case 'regexp_like':
+      arity(2, 3);
+      return withMeaning(call('cast_integer', [call('regex_match', bound(), 'int')], 'int'), plain);
+    case 'regexp_substr':
+      arity(2, 3);
+      return withMeaning(call('regex_find', bound(), 'text'), plain);
+    case 'regexp_replace': {
+      arity(3, 4);
+      const b = bound();
+      const flags = args[3];
+      if (flags && flags.kind === 'literal' && typeof flags.value === 'string' && flags.value.includes('g')) {
+        const rest = flags.value.replaceAll('g', '');
+        return withMeaning(call('regex_replace_all', rest ? [b[0]!, b[1]!, b[2]!, lit(rest, 'text')] : b.slice(0, 3), 'text'), plain);
+      }
+      return withMeaning(call('regex_replace', b, 'text'), plain);
+    }
+    case 'isnan': {
+      arity(1, 1);
+      return withMeaning(call('cast_integer', [call('cmp_eq', [bindExpr(args[0]!, scope), lit(Number.NaN, 'real')], 'int')], 'int'), plain);
+    }
+    default:
+      return undefined;
+  }
+}
 
 /** Functions whose arguments are the engine's dates and times, not SQL's text of them. */
 const TYPED_ARGS = new Set([
