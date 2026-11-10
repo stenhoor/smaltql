@@ -313,6 +313,7 @@ class Parser {
   private optAlias(): string | undefined {
     if (this.acceptKw('AS')) return this.nameOrString();
     if (this.isAsof(this.p)) return undefined;
+    if (this.isUnpivot(this.p)) return undefined;
     const k = this.kinds[this.p];
     if (k === TK_ID || k === TK_QID || k === TK_STRING) return this.vals[this.p++] as string;
     if (k === TK_NKW && !NO_IMPLICIT_ALIAS.has(this.kws[this.p])) return this.vals[this.p++] as string;
@@ -631,6 +632,44 @@ class Parser {
   }
 
   private tableOrSubquery(): A.FromItem {
+    const item = this.tableOrSubqueryBase();
+    if (!this.isUnpivot(this.p)) return item;
+    if (item.kind !== 'table' && item.kind !== 'subquery') this.error('UNPIVOT applies to a table or a subquery');
+    // `UNPIVOT [INCLUDE | EXCLUDE NULLS] (value FOR name IN (col [AS 'label'], …))` (SQL standard; smaltdb ADR 0022).
+    this.p++;
+    const word = (): string => (this.kinds[this.p] === TK_ID ? String(this.vals[this.p]).toUpperCase() : this.kws[this.p]);
+    let includeNulls = false;
+    if ((word() === 'INCLUDE' || word() === 'EXCLUDE') && this.kws[this.p + 1] === 'NULLS') {
+      includeNulls = word() === 'INCLUDE';
+      this.p += 2;
+    }
+    this.expectOp('(');
+    const value = this.name();
+    this.expectKw('FOR');
+    const name = this.name();
+    this.expectKw('IN');
+    this.expectOp('(');
+    const columns: { column: string; label?: string }[] = [];
+    do {
+      const column = this.name();
+      const label = this.acceptKw('AS') ? this.nameOrString() : undefined;
+      columns.push(label !== undefined ? { column, label } : { column });
+    } while (this.acceptOp(','));
+    this.expectOp(')');
+    this.expectOp(')');
+    const alias = this.optAlias();
+    const t = item as A.TableRef | A.SubqueryRef;
+    return { ...t, alias: alias ?? t.alias, unpivot: { value, name, columns, includeNulls }, end: this.ends[this.p - 1] };
+  }
+
+  /** `UNPIVOT (` or `UNPIVOT INCLUDE NULLS (` starts at token `i`. */
+  private isUnpivot(i: number): boolean {
+    if (!(this.kinds[i] === TK_ID && String(this.vals[i]).toUpperCase() === 'UNPIVOT')) return false;
+    const next = this.kws[i + 1] || (this.kinds[i + 1] === TK_ID ? String(this.vals[i + 1]).toUpperCase() : '');
+    return this.isOpAt(i + 1, '(') || ((next === 'INCLUDE' || next === 'EXCLUDE') && this.kws[i + 2] === 'NULLS');
+  }
+
+  private tableOrSubqueryBase(): A.FromItem {
     const pos = this.pos();
     if (this.isOp('(')) {
       if (isSelectStartKw(this.kws[this.p + 1])) {

@@ -1126,9 +1126,42 @@ class FrontEnd {
     return op;
   }
 
+  /**
+   * `item UNPIVOT (value FOR name IN (cols))` (SQL standard; smaltdb ADR 0022): the engine's unpivot of the item, one
+   * row per row and listed column, holding the item's other columns, the column's name and its value. NULL values
+   * give no row unless INCLUDE NULLS.
+   */
+  private unpivotSource(item: Extract<FromItem, { kind: 'table' | 'subquery' }>, scope: FeScope, position: number): PlanOp {
+    const u = item.unpivot!;
+    const inner = new FeScope(scope);
+    const input = this.addSource({ ...item, unpivot: undefined } as FromItem, inner);
+    const src = inner.sources[0]!;
+    const index = (name: string): number => {
+      const i = src.cols.findIndex((c) => sameName(c.name, name));
+      if (i < 0) throw new SmaltError('SMALT_ERROR', `no such column: ${name}`);
+      return i;
+    };
+    const columns = u.columns.map((c) => index(c.column));
+    const keep = src.cols.map((_, i) => i).filter((i) => !columns.includes(i));
+    const types = [...new Set(columns.map((i) => src.cols[i]!.type))];
+    const type: StaticType = types.length === 1 ? types[0]! : types.every((t) => t === 'int' || t === 'real' || t === 'num') ? 'num' : 'any';
+    const col = (name: string, t: StaticType): FeColumn => ({ name, type: t, collation: Collation.Binary, affinity: 'NONE', declType: '' });
+    const cols: FeColumn[] = [...keep.map((i) => src.cols[i]!), col(u.name, 'text'), col(u.value, type)];
+    const names = u.columns.map((c) => c.label ?? src.cols[index(c.column)]!.name);
+    let op: PlanOp = { op: 'unpivot', input, keep, columns, names, type } as PlanOp;
+    if (!u.includeNulls) {
+      const value: PlanExpr = { k: 'col', input: 0, index: keep.length + 1, depth: 0, type, collation: 'binary' };
+      op = { op: 'filter', input: op, pred: { k: 'isNull', arg: value, not: true } as PlanExpr };
+    }
+    const name = item.alias ?? (item.kind === 'table' ? item.name : 'unpivot');
+    this.push(scope, { name, cols, offset: 0, rowid: null, position, width: cols.length, hidden: NO_HIDDEN });
+    return op;
+  }
+
   /** Add a FROM item's columns to the scope; returns the plan that produces its rows. */
   private addSource(item: FromItem, scope: FeScope): PlanOp {
     const position = scope.sources.length;
+    if ((item.kind === 'table' || item.kind === 'subquery') && item.unpivot) return this.unpivotSource(item, scope, position);
     if (item.kind === 'join') throw new SmaltError('SMALT_ERROR', 'unexpected join');
     // External data: external tables and read_csv()-style functions (their columns come from the data).
     if (item.kind === 'function' && this.catalog.isExternalFunction?.(item.name)) return this.externalFunction(item, scope, position);
@@ -1446,6 +1479,7 @@ class FrontEnd {
         }
         break;
       case 'explode':
+      case 'unpivot':
         this.resolveRefs(o.input);
         break;
       case 'setop':

@@ -271,6 +271,7 @@ export interface TableRef extends Node {
   indexedBy?: string | null;
   /** `TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]`. */
   sample?: TableSample;
+  unpivot?: Unpivot;
 }
 
 export interface TableSample {
@@ -282,6 +283,15 @@ export interface SubqueryRef extends Node {
   kind: 'subquery';
   select: SelectStmt;
   alias?: string;
+  unpivot?: Unpivot;
+}
+
+/** `UNPIVOT [INCLUDE NULLS] (value FOR name IN (col [AS 'label'], …))` after a FROM item. */
+export interface Unpivot {
+  value: string;
+  name: string;
+  columns: { column: string; label?: string }[];
+  includeNulls: boolean;
 }
 
 /** Table-valued function in FROM, e.g. `pragma_table_info('t')` or `read_csv('x.csv', header => false)`. */
