@@ -76,3 +76,10 @@ ORDER BY month, place;
 
 smaltql parses SQL into plans for [smaltdb](https://smaltdb.dev), the engine underneath: it runs them in a Web Worker,
 so queries never block the page, and keeps the data in the browser's Origin Private File System.
+
+## Documentation
+
+- [Quick start](/guide/quick-start): five minutes, three steps, ending in SQL that runs on the page.
+- [Getting started](/guide/getting-started): installation, a tutorial that builds a small data layer, and the FAQ.
+- [User guide](/guide/databases): databases, queries, transactions, schema, indexes, views, analytics, import and external data.
+- [Reference](/reference/sql/): every statement and function, the client API, and the errors, with tested examples to run.
