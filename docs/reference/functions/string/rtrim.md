@@ -4,7 +4,7 @@
 rtrim ::= 'rtrim' '(' X ')' | 'rtrim' '(' X ',' CHARS ')'
 ```
 
-Like `trim`, but only from the end of `X`.
+Like [`trim`](./trim), but only from the end of `X`.
 
 ```sql
 SELECT '[' || trim('  a b  ') || ']' AS a, '[' || ltrim('  a b  ') || ']' AS b, '[' || rtrim('  a b  ') || ']' AS c, trim('xxhixx', 'x') AS d, trim('abcba', 'ab') AS e;

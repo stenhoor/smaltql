@@ -14,6 +14,8 @@ Reads CSV (RFC 4180: quoted fields may contain the delimiter, quotes and line br
 
 Column types are inferred from all the values in the column: INTEGER if every non-empty value is an integer, REAL if every value is a number, otherwise TEXT. Header names are trimmed; an empty name becomes `columnN`, and a repeated name gets a suffix (`name_2`). An unquoted empty field is NULL; a quoted empty field (`""`) is the empty string.
 
+An option name it doesn't know, such as `delim` for `delimiter`, fails with `SMALT_EXTERNAL`, as do a file that can't be read or parsed and a bad option value ([Options](./#options)).
+
 ```sql
 SELECT * FROM read_csv('file:fn-cities.csv');
 ```
@@ -80,8 +82,3 @@ SELECT * FROM read_csv('file:fn-latin1.csv', encoding => 'latin1');
 | name | city |
 | --- | --- |
 | José | Málaga |
-
-<!-- docs:error SMALT_EXTERNAL -->
-```sql
-SELECT * FROM read_csv('file:fn-cities.csv', delim => ';');
-```

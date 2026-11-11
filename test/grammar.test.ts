@@ -170,6 +170,14 @@ describe('function pages', () => {
 
   it('have pages', () => expect(pages.length).toBeGreaterThan(150));
 
+  // A function's examples show it working: an error is a rule, stated in the page's prose with its code and message,
+  // not an example (smaltql#60). The error codes page is where failing examples belong.
+  it('show no failing examples, here or on the group pages', () => {
+    const all = [...pages, ...readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `${d.name}/index`)];
+    const failing = all.filter((page) => readFileSync(new URL(`${page}.md`, root), 'utf8').includes('docs:error'));
+    expect(failing).toEqual([]);
+  });
+
   it.each(pages)('%s: every call its diagram can produce, smaltql reads and the engine takes', async (page) => {
     const md = readFileSync(new URL(`${page}.md`, root), 'utf8');
     const blocks = [...md.matchAll(/^```ebnf\n([\s\S]*?)^```/gm)].map((m) => m[1]);

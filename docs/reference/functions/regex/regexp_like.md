@@ -8,6 +8,8 @@ regexp_like ::= X 'NOT'? 'REGEXP' P | 'regexp_like' '(' X ',' P (',' FLAGS)? ')'
 `regexp_like(X, P)` and is case-sensitive; pass `'i'` to `regexp_like` to ignore case.
 
 - **Returns:** 1 or 0, or NULL.
+- **Errors:** `SMALT_ERROR` for a pattern that doesn't compile (`invalid regular expression "("`, with the reason)
+  or a flag other than `i`, `m` and `s`.
 
 ```sql
 SELECT 'abc' REGEXP 'b.' AS anywhere, 'abc' REGEXP '^b' AS at_start, regexp_like('ABC', 'b', 'i') AS ignoring_case,
@@ -28,8 +30,3 @@ SELECT regexp_like('first' || char(10) || 'second', '^second$') AS whole_text,
 | whole_text | by_line |
 | --- | --- |
 | 0 | 1 |
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT regexp_like('abc', '(');
-```

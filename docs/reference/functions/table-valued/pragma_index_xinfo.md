@@ -4,7 +4,7 @@
 pragma_index_xinfo ::= 'pragma_index_xinfo' '(' INDEX ')'
 ```
 
-Like `pragma_index_info`, with three more columns, and a final row for the rowid that every index entry also stores:
+Like [`pragma_index_info`](./pragma_index_info), with three more columns, and a final row for the rowid that every index entry also stores:
 
 | Column | Meaning |
 | --- | --- |

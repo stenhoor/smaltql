@@ -17,8 +17,3 @@ SELECT make_datetime(2026, 11, 7) AS midnight, make_datetime(2026, 11, 7, 14, 30
 | midnight | afternoon | with_microseconds |
 | --- | --- | --- |
 | 2026-11-07 00:00:00 | 2026-11-07 14:30:00 | 2026-11-07 14:30:15.000500 |
-
-<!-- docs:error SMALT_RANGE -->
-```sql
-SELECT make_datetime(2026, 11, 7, 25, 0);
-```

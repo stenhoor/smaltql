@@ -25,8 +25,3 @@ SELECT DATE '2026-01-31' + INTERVAL '1 month' AS next_month, DATE '2026-03-31' -
 | 2026-02-28 | 2026-02-28 | 2026-11-07 11:30:00 | 2026-11-07 08:30:00 | 2026-11-21 |
 
 A date plus a number keeps SQLite's meaning (`'2026-11-07' + 1` is `2027`): add `INTERVAL '1 day'` to move by days.
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT INTERVAL '1 day';
-```

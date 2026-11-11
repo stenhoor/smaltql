@@ -4,7 +4,7 @@
 lead ::= 'lead' '(' X (',' OFFSET (',' DEFAULT)?)? ')' (('IGNORE' | 'RESPECT') 'NULLS')? 'OVER' window-spec
 ```
 
-Like `lag`, but looks `OFFSET` rows after the current one.
+Like [`lag`](./lag), but looks `OFFSET` rows after the current one.
 
 The examples on this page use this table:
 

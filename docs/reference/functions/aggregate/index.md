@@ -56,7 +56,7 @@ name([DISTINCT] X [, Y]) [FILTER (WHERE condition)]
 
 - **NULL**: every aggregate except `count(*)` ignores rows where `X` is NULL.
 - **Empty input**: with no rows (or only NULLs), `count` returns 0, `total` returns 0, and the others return NULL.
-- **`DISTINCT`**: removes duplicate values of `X` before aggregating. It is only allowed with exactly one argument, so `group_concat(DISTINCT X)` works but `group_concat(DISTINCT X, ';')` and `string_agg(DISTINCT X, ';')` fail with `DISTINCT aggregates must have exactly one argument`, as in SQLite.
+- **`DISTINCT`**: removes duplicate values of `X` before aggregating. It is only allowed with exactly one argument, so `group_concat(DISTINCT X)` works but `group_concat(DISTINCT X, ';')` and `string_agg(DISTINCT X, ';')` fail with `SMALT_ERROR`: `DISTINCT aggregates must have exactly one argument`, as in SQLite.
 - **`FILTER (WHERE …)`**: only rows for which the condition is true are fed to the aggregate. `FILTER` is only valid with aggregate functions.
 - **`ORDER BY` inside the call** (`group_concat(x, ',' ORDER BY y)`, SQLite 3.44+) is **not supported**: it fails with `SMALT_UNSUPPORTED`. To control the order of `group_concat`, aggregate over an ordered subquery (see [group_concat](./group_concat)).
 - An aggregate cannot be used in `WHERE`; filter groups with `HAVING`. See [SELECT](../../sql/select).
@@ -70,16 +70,6 @@ FROM sale;
 | rows | with_qty | products | apples |
 | --- | --- | --- | --- |
 | 5 | 4 | 3 | 8 |
-
-<!-- docs:error SMALT_UNSUPPORTED -->
-```sql
-SELECT group_concat(product, ',' ORDER BY product) FROM sale;
-```
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT string_agg(DISTINCT product, ';') FROM sale;
-```
 
 ### Bare columns with min and max
 
