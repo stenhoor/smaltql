@@ -16,13 +16,14 @@ import { type CatalogTable, findColumn } from './tables.js';
 import type { ColumnExpr, Expr, FromItem, JoinType, OrderingTerm, ResultColumn, SelectCoreSelect, SelectStmt, TableRef } from '../ast.js';
 import { isAggregateName } from './functions.js';
 import { and, anyNode as anyNodeIn } from '../ast-util.js';
+import type { SqlView } from './views.js';
 
 /** Whether any node of `e` satisfies `pred`, not looking inside nested SELECT statements. */
 const anyNode = (e: unknown, pred: (x: Record<string, unknown>) => boolean): boolean => anyNodeIn(e, pred, false);
 
 export interface FlattenContext {
   getTable(name: string, schema?: string): CatalogTable | undefined;
-  getView(name: string, schema?: string): { name: string; sql: string; columns?: string[]; select: SelectStmt } | undefined;
+  getView(name: string, schema?: string): SqlView | undefined;
   /** Whether `name` is a CTE visible to this query (CTE references are not flattened). */
   isCte(name: string): boolean;
   /** SQL text the AST positions refer to (names unaliased result columns of FROM subqueries). */
@@ -248,7 +249,8 @@ export function flattenCore(core: SelectCoreSelect, orderBy: OrderingTerm[], ctx
       ref = it.alias;
     } else if (it.kind === 'table' && (!it.schema || ['main', 'temp'].includes(it.schema.toLowerCase())) && !(!it.schema && ctx.isCte(it.name)) && !ctx.getTable(it.name, it.schema)) {
       const v = ctx.getView(it.name, it.schema);
-      if (!v || ctx.expanding?.has(v.name.toLowerCase())) return;
+      // A reshaped view is read as its interface says, with its columns converted: planned, not flattened.
+      if (!v || v.reshaped || ctx.expanding?.has(v.name.toLowerCase())) return;
       select = v.select;
       names = v.columns;
       ref = it.alias ?? it.name;
