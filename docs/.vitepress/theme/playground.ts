@@ -110,10 +110,7 @@ export function playgroundPlugin(md: MarkdownIt, options: PlaygroundPluginOption
       const n = index++
       out.push(
         html(
-          `<div class="sw-play" id="play-${n}" data-index="${n}" data-lang="${esc(lang)}" data-code="${esc(t.content)}" data-setup="${esc(JSON.stringify(before))}"` +
-            // An example the docs expect to fail: its error, when Run gives it, is the expected result.
-            (kinds.includes('docs:error') ? ` data-fails="${esc(fails ?? '')}"` : '') +
-            ` v-pre>\n` +
+          `<div class="sw-play" id="play-${n}" data-index="${n}" data-lang="${esc(lang)}" data-code="${esc(t.content)}" data-setup="${esc(JSON.stringify(before))}" v-pre>\n` +
             `<div class="sw-play-code">\n`,
         ),
       )
@@ -403,7 +400,6 @@ export function enablePlaygrounds(options: PlaygroundOptions, doc: Document = do
       const r = await runner.run(editor.value, setup)
       const ms = Math.round(performance.now() - t0)
       result.removeAttribute('data-tested')
-      result.removeAttribute('data-expected')
       if (r.columns.length) {
         const k = await loadKit()
         const box = doc.createElement('div')
@@ -422,13 +418,9 @@ export function enablePlaygrounds(options: PlaygroundOptions, doc: Document = do
       }
     } catch (e) {
       const err = e as Error & { code?: string }
-      // The failure the docs show for this example (the code they name, or any error when they name none) is its
-      // result, not a problem: it is marked as expected, not as an alert. Once the code is edited, it is an error again.
-      const want = play.getAttribute('data-fails')
-      const expected = want !== null && editor.value === original(play) && (!want || err.code === want)
       const box = doc.createElement('div')
-      box.className = expected ? 'sw-play-error sw-play-expected' : 'sw-play-error'
-      if (!expected) box.setAttribute('role', 'alert')
+      box.className = 'sw-play-error'
+      box.setAttribute('role', 'alert')
       if (err.code) {
         const code = doc.createElement('strong')
         code.textContent = err.code
@@ -436,9 +428,8 @@ export function enablePlaygrounds(options: PlaygroundOptions, doc: Document = do
       }
       box.append(err.message ?? String(e))
       result.removeAttribute('data-tested')
-      result.toggleAttribute('data-expected', expected)
       result.replaceChildren(box)
-      say(play, expected ? 'Failed as expected' : 'Error')
+      say(play, 'Error')
     } finally {
       play.removeAttribute('aria-busy')
     }
@@ -452,7 +443,6 @@ export function enablePlaygrounds(options: PlaygroundOptions, doc: Document = do
     if (saved) {
       result.replaceChildren(...saved.map((n) => n.cloneNode(true)))
       result.setAttribute('data-tested', '')
-      result.removeAttribute('data-expected')
     }
     say(play, '')
     setupApp(play)
