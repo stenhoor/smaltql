@@ -101,6 +101,10 @@ It fails (`SMALT_ERROR`) for:
 
 A column with its own `REFERENCES` clause can be dropped; the foreign key goes with it.
 
+`DROP COLUMN name CASCADE` drops the views that read the column with it, instead of failing; `RESTRICT`, the
+default, fails. It drops only views made with an interface ([Views](./views)); an index, a `CHECK` or a foreign key
+that uses the column still fails it.
+
 <!-- docs:error SMALT_ERROR -->
 ```sql
 ALTER TABLE client DROP COLUMN full_name

@@ -515,6 +515,8 @@ export interface DropStmt extends Node {
   ifExists: boolean;
   schema?: string;
   name: string;
+  /** `CASCADE`: drop the views whose interface the drop breaks (smaltdb ADR 0027). `RESTRICT`, the default: refuse. */
+  cascade?: boolean;
 }
 
 export interface AlterTableStmt extends Node {
@@ -526,6 +528,8 @@ export interface AlterTableStmt extends Node {
     | { kind: 'renameColumn'; column: string; newName: string }
     | { kind: 'addColumn'; column: ColumnDef }
     | { kind: 'dropColumn'; column: string };
+  /** `DROP COLUMN … CASCADE`: drop the views whose interface the change breaks (smaltdb ADR 0027). */
+  cascade?: boolean;
 }
 
 export interface RefreshStmt extends Node {

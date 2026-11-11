@@ -152,7 +152,7 @@ alter-table-stmt ::= 'ALTER' 'TABLE' qualified-name
                      ( 'RENAME' 'TO' name
                      | 'RENAME' 'COLUMN'? name 'TO' name
                      | 'ADD' 'COLUMN'? column-def
-                     | 'DROP' 'COLUMN'? name )
+                     | 'DROP' 'COLUMN'? name ('CASCADE' | 'RESTRICT')? )
 
 create-index-stmt ::= 'CREATE' 'UNIQUE'? 'INDEX' ('IF' 'NOT' 'EXISTS')? qualified-name
                       'ON' name '(' indexed-column (',' indexed-column)* ')' ('WHERE' expr)?
@@ -173,7 +173,7 @@ create-external-table-stmt ::= 'CREATE' 'EXTERNAL' 'TABLE' ('IF' 'NOT' 'EXISTS')
 create-connection-stmt ::= 'CREATE' 'CONNECTION' ('IF' 'NOT' 'EXISTS')? name 'WITH' with-options
 
 drop-stmt ::= 'DROP' ('TABLE' | 'INDEX' | 'VIEW' | 'MATERIALIZED' 'VIEW' | 'EXTERNAL' 'TABLE' | 'CONNECTION')
-              ('IF' 'EXISTS')? qualified-name
+              ('IF' 'EXISTS')? qualified-name ('CASCADE' | 'RESTRICT')?
 
 /* Transactions */
 

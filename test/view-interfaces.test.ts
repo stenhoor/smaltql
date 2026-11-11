@@ -38,3 +38,23 @@ describe('views read as their interface says (smaltdb ADR 0027)', () => {
     expect(d.query('SELECT * FROM v').rows).toEqual([[1, 'x']]);
   });
 });
+
+describe('DROP … CASCADE (smaltdb ADR 0027 step 4)', () => {
+  it('drops the views a DROP TABLE or DROP VIEW breaks', () => {
+    const d = Database.openMemory();
+    d.exec(`CREATE TABLE t(a INTEGER, b TEXT); CREATE VIEW v AS SELECT a FROM t; CREATE VIEW w AS SELECT a FROM v; CREATE TABLE u(x); CREATE VIEW keep AS SELECT x FROM u`);
+    expect(() => d.exec('DROP VIEW v')).toThrow(/breaks the interface of view w/);
+    expect(() => d.exec('DROP VIEW v RESTRICT')).toThrow(/breaks the interface of view w/);
+    d.exec('DROP VIEW v CASCADE');
+    expect(d.query("SELECT name FROM sqlite_schema WHERE type = 'view'").rows).toEqual([['keep']]);
+    d.exec('CREATE VIEW v AS SELECT a FROM t; DROP TABLE IF EXISTS t CASCADE');
+    expect(d.query("SELECT name FROM sqlite_schema ORDER BY name").rows).toEqual([['keep'], ['u']]);
+  });
+
+  it('drops the views an ALTER TABLE … DROP COLUMN breaks', () => {
+    const d = Database.openMemory();
+    d.exec(`CREATE TABLE t(a INTEGER, b TEXT); CREATE VIEW v AS SELECT b FROM t; CREATE VIEW keep AS SELECT a FROM t`);
+    d.exec('ALTER TABLE t DROP COLUMN b CASCADE');
+    expect(d.query("SELECT name FROM sqlite_schema WHERE type = 'view'").rows).toEqual([['keep']]);
+  });
+});
