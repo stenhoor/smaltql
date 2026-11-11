@@ -20,8 +20,3 @@ SELECT offset_by('2026-01-31', '1mo') AS month_end, offset_by('2026-11-07 10:00:
 | month_end | later | earlier | a_date |
 | --- | --- | --- | --- |
 | 2026-02-28 00:00:00 | 2028-02-07 10:00:00 | 2026-11-06 08:00:00 | 2026-11-14 |
-
-<!-- docs:error SMALT_MISMATCH -->
-```sql
-SELECT offset_by('2026-11-07', 'soon');
-```

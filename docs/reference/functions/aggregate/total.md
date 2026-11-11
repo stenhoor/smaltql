@@ -4,7 +4,7 @@
 total ::= 'total' '(' 'DISTINCT'? X ')'
 ```
 
-Like `sum`, but returns 0 instead of NULL when there are no values, and never fails on integer overflow (it switches to REAL arithmetic instead).
+Like [`sum`](./sum), but returns 0 instead of NULL when there are no values, and never fails on integer overflow (it switches to REAL arithmetic instead).
 
 The examples on this page use this table:
 

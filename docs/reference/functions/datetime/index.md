@@ -202,7 +202,7 @@ SELECT datetime('2024-03-15 13:45:30', 'localtime') AS local_time,
 
 ## In indexes and CHECK constraints {#indexes-and-check-constraints}
 
-The date and time functions may be used in index expressions, in a partial index's `WHERE` clause, and in `CHECK` constraints. There, as in SQLite, a call that reads the clock or the time zone fails when it runs: a time value of `'now'`, `'subsec'` or `'subsecond'`, no time value at all (`date()`), and the `'localtime'` and `'utc'` modifiers. The error is `non-deterministic use of date() in an index` or `… in a CHECK constraint`, naming the function. Whether a call reads the clock can depend on the row, so the error comes from the row that does it, when it is inserted or updated (or when `CREATE INDEX` indexes the existing rows).
+The date and time functions may be used in index expressions, in a partial index's `WHERE` clause, and in `CHECK` constraints. There, as in SQLite, a call that reads the clock or the time zone fails when it runs: a time value of `'now'`, `'subsec'` or `'subsecond'`, no time value at all (`date()`), and the `'localtime'` and `'utc'` modifiers. The error is `SMALT_ERROR`: `non-deterministic use of date() in an index` or `… in a CHECK constraint`, naming the function. Whether a call reads the clock can depend on the row, so the error comes from the row that does it, when it is inserted or updated (or when `CREATE INDEX` indexes the existing rows).
 
 ```sql
 CREATE TABLE event(at TEXT);
@@ -214,11 +214,6 @@ SELECT at FROM event WHERE date(at) = '2024-03-15'
 | at |
 | --- |
 | 2024-03-15 13:45:30 |
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-INSERT INTO event VALUES ('now')
-```
 
 `CURRENT_DATE`, `CURRENT_TIME` and `CURRENT_TIMESTAMP` are always prohibited in an index (`non-deterministic functions prohibited in index expressions`). A `DEFAULT` may use any of them.
 

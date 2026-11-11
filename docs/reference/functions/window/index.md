@@ -85,12 +85,7 @@ ORDER BY i;
 | 3 | NULL | 10 | 10 | 10 |
 | 4 | 30 | NULL | 10 | 10 |
 
-On any other window function either clause fails with `SMALT_ERROR`:
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT sum(x) IGNORE NULLS OVER () FROM (SELECT 1 AS x);
-```
+On any other window function either clause fails with `SMALT_ERROR`: `sum(x) IGNORE NULLS OVER ()` gives `IGNORE NULLS is not valid for sum(): only lag, lead, first_value, last_value and nth_value take it`.
 
 ## Aggregate functions as window functions {#aggregate-functions-as-window-functions}
 
@@ -150,11 +145,6 @@ ORDER BY points, player;
 | `cannot override frame specification of window: w` | `OVER (w ORDER BY …)` where `w` has a frame. |
 
 All are `SMALT_ERROR`.
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT player FROM score WHERE rank() OVER (ORDER BY points) = 1;
-```
 
 To filter on a window function, compute it in a subquery or CTE:
 

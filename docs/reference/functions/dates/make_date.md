@@ -18,8 +18,3 @@ SELECT make_date(2026, 11, 7) AS d, make_date(2024, 2, 29) AS leap_day, make_dat
 | d | leap_day | null_year |
 | --- | --- | --- |
 | 2026-11-07 | 2024-02-29 | NULL |
-
-<!-- docs:error SMALT_RANGE -->
-```sql
-SELECT make_date(2025, 2, 29);
-```

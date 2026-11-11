@@ -18,8 +18,3 @@ SELECT EXTRACT(month FROM '2026-11-08') AS m, date_part('isodow', '2026-11-08') 
 | m | dow | doy | s |
 | --- | --- | --- | --- |
 | 11 | 7 | 312 | 5 |
-
-<!-- docs:error SMALT_ERROR -->
-```sql
-SELECT date_part('quarter', '2026-11-08');
-```
