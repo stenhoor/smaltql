@@ -1418,7 +1418,15 @@ class Parser {
     this.p++;
     const ifExists = this.optIfExists();
     const q = this.qualifiedName();
-    return { kind: 'drop', pos, objectType, ifExists, schema: q.schema, name: q.name, end: this.ends[this.p - 1] };
+    const cascade = this.cascadeOrRestrict();
+    return { kind: 'drop', pos, objectType, ifExists, schema: q.schema, name: q.name, ...(cascade ? { cascade } : {}), end: this.ends[this.p - 1] };
+  }
+
+  /** `CASCADE` (true) or `RESTRICT` (the default, false) after a DROP's name, as in PostgreSQL. */
+  private cascadeOrRestrict(): boolean {
+    if (this.acceptKw('CASCADE')) return true;
+    this.acceptKw('RESTRICT');
+    return false;
   }
 
   private alterStmt(): A.AlterTableStmt {
@@ -1441,6 +1449,7 @@ class Parser {
     } else if (this.acceptKw('DROP')) {
       if (this.isKw('COLUMN') && this.isNameAt(this.p + 1)) this.p++;
       action = { kind: 'dropColumn', column: this.name() };
+      if (this.cascadeOrRestrict()) return { kind: 'alterTable', pos, schema: q.schema, table: q.name, action, cascade: true, end: this.ends[this.p - 1] };
     } else this.fail();
     return { kind: 'alterTable', pos, schema: q.schema, table: q.name, action, end: this.ends[this.p - 1] };
   }

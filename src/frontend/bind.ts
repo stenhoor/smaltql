@@ -91,8 +91,8 @@ export function bindStatement(ps: ParsedStatement, catalog: BindContext, receive
         op: { op: 'createExternalTable', name: stmt.name, ifNotExists: stmt.ifNotExists, columns: stmt.columns.map((c) => ({ name: c.name, declaredType: c.type ?? '', constrained: c.constraints.length > 0 })), options: stmt.with, source: sql(ps) },
       };
     case 'drop':
-      return { kind: 'schema', op: { op: 'drop', objectType: stmt.objectType, name: stmt.name, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), ifExists: stmt.ifExists } };
+      return { kind: 'schema', op: { op: 'drop', objectType: stmt.objectType, name: stmt.name, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), ifExists: stmt.ifExists, ...(stmt.cascade ? { cascade: true } : {}) } };
     case 'alterTable':
-      return { kind: 'schema', op: { op: 'alterTable', table: stmt.table, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), action: toAlterAction(stmt, ps.text, catalog), source: sql(ps) } };
+      return { kind: 'schema', op: { op: 'alterTable', table: stmt.table, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), action: toAlterAction(stmt, ps.text, catalog), source: sql(ps), ...(stmt.cascade ? { cascade: true } : {}) } };
   }
 }

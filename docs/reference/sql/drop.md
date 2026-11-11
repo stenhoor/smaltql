@@ -30,6 +30,9 @@ Removes the table, its rows and its indexes. A view that reads it holds it: the 
 (views keep the columns they were made with: [smaltdb ADR 0027](https://smaltdb.dev/adr/0027-view-interfaces)). A view
 made before view interfaces is kept, and fails when used (`no such table`), as in SQLite.
 
+`CASCADE` after the name drops the views that would break with it, and then the views those break; `RESTRICT`, the
+default, fails instead (as in PostgreSQL). It works the same for `DROP VIEW`.
+
 If other tables have foreign keys that reference it and enforcement is on, its rows are deleted first, applying their `ON DELETE` actions; the drop fails if that violates a constraint (as in SQLite).
 
 When a TEMP table shadows a main table of the same name, `DROP TABLE name` drops the TEMP table and `DROP TABLE main.name` the main one.
@@ -40,8 +43,7 @@ DROP TABLE t
 ```
 
 ```sql
-DROP VIEW v;
-DROP TABLE t;
+DROP TABLE t CASCADE;
 SELECT count(*) AS objects FROM sqlite_schema
 ```
 
