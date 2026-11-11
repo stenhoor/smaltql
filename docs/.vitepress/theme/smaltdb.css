@@ -243,13 +243,6 @@ svg.sw-rr { display: block; max-width: none; }
 .sw-play-note { font-size: 15px; color: var(--vp-c-text-2); }
 .sw-play-error { margin: 12px 0; padding: 10px 12px; border-radius: 6px; font-size: 14px; color: var(--vp-c-danger-1); background: var(--vp-c-danger-soft); }
 .sw-play-error strong { font-family: var(--smalt-brand-font); font-size: 13px; }
-/* An error the docs expect (an example marked docs:error): the example's result, captioned like a tested result. */
-.sw-play-result[data-expected]::before {
-  content: 'Expected error'; display: block; padding-top: 10px;
-  font-family: var(--smalt-brand-font); font-size: 12px; color: var(--vp-c-text-3);
-}
-.sw-play-error.sw-play-expected { margin-top: 8px; color: var(--vp-c-text-1); background: var(--vp-c-default-soft); }
-.sw-play-expected strong { color: var(--vp-c-danger-1); }
 /* At rest, an example that runs in place looks like any example: its code, a small Run button and its tested result.
    Run or Edit makes it live, with the toolbar and the frame above. */
 .sw-play:not(.sw-play-live) { border: 0; border-radius: 0; overflow: visible; }
