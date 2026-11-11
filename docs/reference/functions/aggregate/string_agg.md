@@ -4,7 +4,7 @@
 string_agg ::= 'string_agg' '(' X ',' SEP ')'
 ```
 
-The same as `group_concat(X, SEP)`, with the separator required (the SQL-standard and PostgreSQL name). `string_agg(X)` with one argument fails with `wrong number of arguments`, and `DISTINCT` is not allowed because the function always has two arguments.
+The same as `group_concat(X, SEP)`, with the separator required (the SQL-standard and PostgreSQL name). `DISTINCT` is not allowed, because the function always has two arguments.
 
 The examples on this page use this table:
 
