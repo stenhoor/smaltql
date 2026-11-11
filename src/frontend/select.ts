@@ -17,7 +17,8 @@ import { containsAggregate, containsWindow, coreReferences, exprEquals, firstAgg
 import { type BoundExpr, type PlanExpr, typeOf } from 'smaltdb/language';
 import { copyMeaning, noDecorrelate } from './meaning.js';
 import type { AggCall, ConflictAction, JoinKind, PlanOp, SortKey, WindowCall, WindowFrame } from 'smaltdb/language';
-import type { BindContext } from 'smaltdb/language';
+import type { BindContext, ViewInterfaceColumn } from 'smaltdb/language';
+import { conversion } from 'smaltdb/language';
 import type { CollationName } from 'smaltdb/language';
 import { Collation, type SqlValue } from 'smaltdb/language';
 import type { CallExpr, ColumnExpr, DeleteStmt, Expr, InsertStmt, UpdateStmt, UpsertClause, FrameBound, FromItem, JoinType, OrderingTerm, ResultColumn, SelectCore, SelectCoreSelect, SelectStmt, WindowSpec, WithClause } from '../ast.js';
@@ -1293,6 +1294,7 @@ class FrontEnd {
           this.text = outerText;
           this.expandingViews.delete(key);
         }
+        if (view.reshaped && view.interface) sub = asInterface(sub, view.interface);
         names = view.columns;
         alias = (item as { alias?: string }).alias ?? (item as { name: string }).name;
         if (names && names.length !== sub.columns.length) {
@@ -1663,4 +1665,41 @@ class FrontEnd {
 function unwrapNested(b: BoundExpr): BoundExpr {
   const c = b as { k: string; fn?: string; args?: BoundExpr[] };
   return c.k === 'call' && c.fn === 'cast_text' && c.args?.length === 1 && /^(list|struct)</.test(typeOf(c.args[0]!)) ? c.args[0]! : b;
+}
+
+/**
+ * A reshaped view's result read as its interface says (smaltdb ADR 0027): only the interface's columns (a view over `*`
+ * keeps the ones it had), each converted to the interface's type where its query now gives another.
+ */
+function asInterface(sub: CoreResult, iface: readonly ViewInterfaceColumn[]): CoreResult {
+  // A converted column compares as a column of the interface's type did (its affinity), as before it changed.
+  const columns = sub.columns.slice(0, iface.length).map((c, i) => (c.type === iface[i]!.type ? c : { ...c, type: iface[i]!.type, declType: '', affinity: affinityOfType(iface[i]!.type) }));
+  const exprs = sub.columns.slice(0, iface.length).map((c, i): PlanExpr => {
+    const col: PlanExpr = { k: 'col', input: 0, index: i, depth: 0, type: c.type, collation: collationName(c.collation) };
+    const want = iface[i]!.type;
+    const fn = c.type === want ? undefined : conversion(c.type, want)?.fn;
+    return fn ? { k: 'call', fn, args: [col], type: want } : col;
+  });
+  return { plan: { op: 'project', input: sub.plan, exprs }, columns };
+}
+
+/** The affinity of a column whose values are of plan type `t`. */
+function affinityOfType(t: StaticType): Affinity {
+  switch (t) {
+    case 'int':
+    case 'bool':
+    case 'date':
+    case 'datetime':
+    case 'time':
+    case 'duration':
+      return 'INTEGER';
+    case 'real':
+      return 'REAL';
+    case 'num':
+      return 'NUMERIC';
+    case 'text':
+      return 'TEXT';
+    default:
+      return 'NONE';
+  }
 }

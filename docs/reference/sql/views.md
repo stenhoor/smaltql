@@ -10,6 +10,24 @@ create-view-stmt
 
 A view is read like a table. Its query runs every time the view is used. The column list, if given, renames the query's columns and must match their number (otherwise reading the view fails with `expected 2 columns for 'v' but got 1`).
 
+### A view's interface
+
+A view keeps the columns it gave when it was made, by name, type and whether they can be NULL: its interface
+([smaltdb ADR 0027](https://smaltdb.dev/adr/0027-view-interfaces)). A view that can't be read yet (it reads a table
+created later) gets its interface the first time it can. From then on:
+
+- A schema change that would break it fails with `SMALT_ERROR`: dropping a table or view it reads, dropping a
+  column it reads, or changing a column's type other than losslessly
+  (`schema change breaks the interface of view v: column n: int → real is not lossless`). Inside a transaction
+  the check waits for `COMMIT`, so a table can be rebuilt with a new column type (create a copy, drop the table,
+  rename the copy).
+- Renaming a table or column it reads is fine: the view's text is edited, and its columns keep their names.
+- A column whose type changed losslessly (TEXT to INTEGER, for one, which converts back to text exactly) is read as
+  the interface's type.
+- A view over `SELECT *` keeps the columns it had: a column added to the table doesn't appear in it.
+
+Views made before interfaces keep SQLite's behaviour, and follow the tables they read.
+
 ```sql
 CREATE TABLE sale(day TEXT, product TEXT, amount REAL);
 INSERT INTO sale VALUES

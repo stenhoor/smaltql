@@ -3,16 +3,22 @@
  * SQL parses that source where it reads the view, once per text.
  */
 import { SmaltError } from 'smaltdb/language';
-import type { Source } from 'smaltdb/language';
+import type { Source, ViewInterfaceColumn } from 'smaltdb/language';
 import type { CreateViewStmt, SelectStmt } from '../ast.js';
 import { parseOne } from '../parser.js';
 
-/** A view the front end flattens or plans: its name, text, column names and parsed query. */
+/**
+ * A view the front end flattens or plans: its name, text, column names and parsed query, and its interface (smaltdb ADR
+ * 0027). `reshaped`: its query no longer gives exactly its interface, so it is read as the interface says (never
+ * flattened).
+ */
 export interface SqlView {
   name: string;
   sql: string;
   columns?: string[];
   select: SelectStmt;
+  interface?: readonly ViewInterfaceColumn[];
+  reshaped?: true;
 }
 
 const parsed = new Map<string, SelectStmt>();
@@ -31,6 +37,15 @@ export function viewSelect(source: Source): SelectStmt {
 }
 
 /** A view from the catalog, as SQL reads it. */
-export function sqlView(v: { name: string; source: Source; columns?: readonly string[] } | undefined): SqlView | undefined {
-  return v && { name: v.name, sql: v.source.text, ...(v.columns ? { columns: [...v.columns] } : {}), select: viewSelect(v.source) };
+export function sqlView(v: { name: string; source: Source; columns?: readonly string[]; interface?: readonly ViewInterfaceColumn[]; reshaped?: true } | undefined): SqlView | undefined {
+  return (
+    v && {
+      name: v.name,
+      sql: v.source.text,
+      ...(v.columns ? { columns: [...v.columns] } : {}),
+      select: viewSelect(v.source),
+      ...(v.interface ? { interface: v.interface } : {}),
+      ...(v.reshaped ? { reshaped: true as const } : {}),
+    }
+  );
 }

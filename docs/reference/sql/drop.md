@@ -25,25 +25,29 @@ DROP TABLE v
 
 ## DROP TABLE
 
-Removes the table, its rows and its indexes. Views that read it are kept, and fail when used (`no such table`), as in SQLite.
+Removes the table, its rows and its indexes. A view that reads it holds it: the drop fails with `SMALT_ERROR`
+(`schema change breaks the interface of view v: it no longer binds (no such table: t)`), so the view is dropped first
+(views keep the columns they were made with: [smaltdb ADR 0027](https://smaltdb.dev/adr/0027-view-interfaces)). A view
+made before view interfaces is kept, and fails when used (`no such table`), as in SQLite.
 
 If other tables have foreign keys that reference it and enforcement is on, its rows are deleted first, applying their `ON DELETE` actions; the drop fails if that violates a constraint (as in SQLite).
 
 When a TEMP table shadows a main table of the same name, `DROP TABLE name` drops the TEMP table and `DROP TABLE main.name` the main one.
 
-```sql
-DROP TABLE t;
-SELECT name FROM sqlite_schema
-```
-
-| name |
-| --- |
-| v |
-
 <!-- docs:error SMALT_ERROR -->
 ```sql
-SELECT * FROM v
+DROP TABLE t
 ```
+
+```sql
+DROP VIEW v;
+DROP TABLE t;
+SELECT count(*) AS objects FROM sqlite_schema
+```
+
+| objects |
+| --- |
+| 0 |
 
 ## DROP INDEX
 
