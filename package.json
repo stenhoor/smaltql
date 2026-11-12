@@ -53,7 +53,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "typecheck": "node scripts/fetch-packed.mjs --check && tsc -p tsconfig.json",
+    "typecheck": "node scripts/fetch-packed.mjs --check && node node_modules/typescript7/bin/tsc -p tsconfig.json",
     "test": "node scripts/fetch-packed.mjs --check && vitest run",
     "check": "npm run typecheck && npm test",
     "slt": "esbuild test/slt/run.ts --bundle --platform=node --format=esm --outfile=.cache/slt-run.mjs --log-level=warning --tsconfig=tsconfig.json && node .cache/slt-run.mjs",
@@ -71,8 +71,9 @@
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
     "smaltkit": "github:stenhoor/smaltkit#3a6f12837e490cbc005b1255782ecf7d6fe50813",
-    "typescript": "5.9",
+    "typescript": "~6.0.3",
     "vitepress": "1.6.4",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "typescript7": "npm:typescript@~7.0.2"
   }
 }
