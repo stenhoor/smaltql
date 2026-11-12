@@ -245,7 +245,6 @@ describe('documentation TypeScript examples', () => {
           skipLibCheck: true,
           types: ['node'],
           typeRoots: [join(root, 'node_modules/@types')],
-          baseUrl: '.',
           paths: {
             '@smaltworks/smaltql': [join(root, 'src/index.ts')],
             '@smaltworks/smaltql/register': [join(root, 'src/register.ts')],
@@ -262,7 +261,7 @@ describe('documentation TypeScript examples', () => {
     );
     let output = '';
     try {
-      execFileSync(process.execPath, [join('node_modules', 'typescript', 'bin', 'tsc'), '-p', join(dir, 'tsconfig.json')], { encoding: 'utf8' });
+      execFileSync(process.execPath, [join('node_modules', 'typescript7', 'bin', 'tsc'), '-p', join(dir, 'tsconfig.json')], { encoding: 'utf8' });
     } catch (e) {
       output = String((e as { stdout?: string }).stdout ?? e);
     }

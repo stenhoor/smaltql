@@ -29,6 +29,10 @@ copy here: lines and roles change, and a copy taken before the change is out of 
 | `npm run build` | `dist/`: `index.js` (the language, parser and `open()`), `register.js`, `worker.js` and type declarations | Packaging checks |
 | `npm run docs:dev` | The docs site (VitePress) with live reload; `npm run docs:build` fails on dead links | Docs changes |
 
+Type checking (`npm run typecheck`, and the docs examples' check in `test/docs-examples.test.ts`) runs on TypeScript 7:
+`typescript7`, an npm alias, run as `node node_modules/typescript7/bin/tsc`. The declarations `npm run build` emits stay
+on TypeScript 6.0.3 (`typescript`, so `npx tsc` is 6.0.3) for one more release (smaltty ADR 0030).
+
 ## Before the first publish
 
 smaltdb 0.9.0 is not on npm yet. `packed.json` pins it to a commit; `scripts/fetch-packed.mjs` builds that commit, packs
