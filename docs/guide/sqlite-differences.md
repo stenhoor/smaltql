@@ -151,7 +151,6 @@ These are rejected. Statements the parser does not know fail with a syntax error
 | `REINDEX` | syntax error | |
 | `WITHOUT ROWID` tables | `SMALT_UNSUPPORTED` | a `PRIMARY KEY` on a rowid table |
 | generated columns | `SMALT_UNSUPPORTED` | compute in queries or views |
-| `CREATE TABLE … AS SELECT` | `SMALT_UNSUPPORTED` | `CREATE TABLE`, then `INSERT … SELECT` |
 | `LOOSE` (dynamic typing) | `SMALT_UNSUPPORTED` | `ANY` columns |
 | `WITH … INSERT … VALUES` | `SMALT_UNSUPPORTED` | `WITH … INSERT … SELECT` |
 | `UPDATE` / `DELETE` with `ORDER BY` or `LIMIT` | `SMALT_UNSUPPORTED` | `WHERE rowid IN (SELECT rowid … LIMIT n)` |
@@ -166,11 +165,6 @@ These are rejected. Statements the parser does not know fail with a syntax error
 | `EXPLAIN` of statements other than `SELECT` | `SMALT_UNSUPPORTED` | |
 | `EXPLAIN` bytecode listing | plain `EXPLAIN` returns the query plan | |
 | most `PRAGMA`s (`user_version`, `cache_size`, `busy_timeout`, `synchronous`, …) | `SMALT_UNSUPPORTED` | [open options](./databases) |
-
-<!-- docs:error SMALT_UNSUPPORTED -->
-```sql
-CREATE TABLE copy AS SELECT * FROM seq
-```
 
 <!-- docs:error SMALT_UNSUPPORTED -->
 ```sql

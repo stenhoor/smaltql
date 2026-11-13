@@ -189,7 +189,7 @@ ORDER BY p.id;
 | Desk lamp | 1 |
 | Chair, swivel | 4 |
 
-To copy external data into a table, create the table and insert into it (`CREATE TABLE … AS SELECT` is not supported):
+To copy external data into a table, create the table and insert into it, so it has the keys and types you choose (`CREATE TABLE … AS SELECT` makes one too, with the types SQLite gives it):
 
 ```sql
 CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL);
