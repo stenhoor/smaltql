@@ -101,7 +101,7 @@ delete-stmt ::= with-clause? 'DELETE' 'FROM' qualified-name ('AS' name)? ('INDEX
 /* Schema */
 
 create-table-stmt ::= 'CREATE' ('TEMP' | 'TEMPORARY')? 'TABLE' ('IF' 'NOT' 'EXISTS')? qualified-name
-                      '(' column-def (',' column-def)* (',' table-constraint)* ')' table-options?
+                      ('(' column-def (',' column-def)* (',' table-constraint)* ')' table-options? | 'AS' select-stmt)
 
 column-def ::= name type-name? column-constraint*
 

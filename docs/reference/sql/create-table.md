@@ -266,11 +266,28 @@ SELECT type, name FROM temp.sqlite_schema
 | table | scratch |
 | table | notes |
 
+## From a query
+
+`CREATE TABLE name AS SELECT …` creates a table with a column for each of the query's result columns and fills it with the query's rows, in one statement: if the query fails, no table is left. As in SQLite, the columns are named as the query names them (a repeated name gets `:1`, `:2`, …) and declared by their affinity: `INT`, `REAL`, `TEXT`, `NUM`, or no type for an expression without one. The new table has no constraints, defaults or collations, and the catalog stores its definition as SQLite writes it.
+
+```sql
+CREATE TABLE page_counts AS SELECT title, pages, pages / 100 AS hundreds, 'book' AS kind FROM book;
+SELECT name, type FROM pragma_table_info('page_counts')
+```
+
+| name | type |
+| --- | --- |
+| title | TEXT |
+| pages | INT |
+| hundreds | |
+| kind | |
+
+With `IF NOT EXISTS` and an existing table, nothing is created or inserted. For constraints, keys or other types, create the table first, then `INSERT INTO … SELECT`.
+
 ## Not supported
 
 | Form | Result |
 | --- | --- |
-| `CREATE TABLE … AS SELECT …` | `SMALT_UNSUPPORTED` |
 | generated columns (`GENERATED ALWAYS AS (…)`, `AS (…) STORED`) | `SMALT_UNSUPPORTED` |
 | `WITHOUT ROWID` | `SMALT_UNSUPPORTED` |
 | `LOOSE` (dynamic typing) | `SMALT_UNSUPPORTED` |
@@ -278,12 +295,6 @@ SELECT type, name FROM temp.sqlite_schema
 
 <!-- docs:error SMALT_UNSUPPORTED -->
 ```sql
-CREATE TABLE copy AS SELECT * FROM book
-```
-
-<!-- docs:error SMALT_UNSUPPORTED -->
-```sql
 CREATE TABLE area(w REAL, h REAL, a REAL GENERATED ALWAYS AS (w * h))
 ```
 
-To copy a query's result into a new table, create the table, then `INSERT INTO … SELECT`.

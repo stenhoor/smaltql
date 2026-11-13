@@ -9,7 +9,10 @@ import type { BoundQuery, BoundStatement } from 'smaltdb/language';
 import type { ParsedStatement, SelectStmt } from '../ast.js';
 import { toPlan, toValueExpr, toWritePlan } from './select.js';
 import { checkNewTable, toAlterAction, toIndexDef, toTableDef, withBoundChecks } from './ddl.js';
-import type { KeyDef, Source, TableDef } from 'smaltdb/language';
+import type { Affinity, ColumnDef, KeyDef, PlanOp, Source, TableDef } from 'smaltdb/language';
+import { storageTypeFor } from 'smaltdb/language';
+import type { CreateTableStmt } from '../ast.js';
+import { TK_ID, tokenize } from '../lexer.js';
 
 const sql = (ps: ParsedStatement): Source => ({ language: 'sql', text: ps.text });
 
@@ -56,6 +59,7 @@ export function bindStatement(ps: ParsedStatement, catalog: BindContext, receive
     case 'refresh':
       return { kind: 'maintenance', action: 'refresh', view: stmt.name, schema: stmt.schema, concurrently: stmt.concurrently, withData: stmt.withData, ifChanged: stmt.ifChanged === true };
     case 'createTable': {
+      if (stmt.asSelect) return createTableAs(stmt, received(toPlan(stmt.asSelect, ps.text, catalog)));
       // SQL's rules for DEFAULT and CHECK first, then the CHECKs bound (a bad one fails here, as in SQLite).
       let def = toTableDef(stmt, ps.text, catalog);
       checkNewTable(stmt);
@@ -95,4 +99,45 @@ export function bindStatement(ps: ParsedStatement, catalog: BindContext, receive
     case 'alterTable':
       return { kind: 'schema', op: { op: 'alterTable', table: stmt.table, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), action: toAlterAction(stmt, ps.text, catalog), source: sql(ps), ...(stmt.cascade ? { cascade: true } : {}) } };
   }
+}
+
+/** SQLite's declared type for a CREATE TABLE … AS SELECT column, by the query column's affinity. */
+const AS_TYPE: Record<Affinity, string> = { INTEGER: 'INT', REAL: 'REAL', TEXT: 'TEXT', NUMERIC: 'NUM', BLOB: '', NONE: '' };
+
+/**
+ * CREATE TABLE … AS SELECT, as SQLite makes it: a column per result column, named as the query names it (a repeated
+ * name gets `:1`, `:2`, …), declared by its affinity (INT, REAL, TEXT, NUM, or no type), with no constraints and no
+ * collations; the source kept is the table's own CREATE TABLE, as SQLite stores it. The engine fills it with the
+ * query's rows in the same statement.
+ */
+function createTableAs(stmt: CreateTableStmt, query: { plan: PlanOp; columns: { name: string; affinity: Affinity }[] }): BoundStatement {
+  const seen = new Set<string>();
+  const columns: ColumnDef[] = query.columns.map((c) => {
+    let name = c.name;
+    if (seen.has(name.toLowerCase())) {
+      const base = name.replace(/:\d+$/, '');
+      for (let n = 1; seen.has(name.toLowerCase()); n++) name = `${base}:${n}`;
+    }
+    seen.add(name.toLowerCase());
+    const declaredType = AS_TYPE[c.affinity];
+    return { name, declaredType, type: storageTypeFor(declaredType), notNull: false, collation: 'binary' };
+  });
+  const table: TableDef = { name: stmt.name, columns, keys: [], checks: [], foreignKeys: [], storage: 'row' };
+  return {
+    kind: 'schema',
+    op: { op: 'createTable', table, ...(stmt.schema !== undefined ? { schema: stmt.schema } : {}), temp: stmt.temp, ifNotExists: stmt.ifNotExists, source: { language: 'sql', text: createTableText(stmt.name, columns) }, rows: query.plan },
+  };
+}
+
+/** The CREATE TABLE text SQLite stores for a table made by CREATE TABLE … AS SELECT (createTableStmt in its build.c). */
+function createTableText(name: string, columns: ColumnDef[]): string {
+  // SQLite quotes a name that isn't a plain identifier or is a keyword; its line breaks follow the names' length.
+  const ident = (s: string): string => {
+    const t = tokenize(s);
+    return t.kinds[0] === TK_ID && t.ends[0] === s.length && t.starts[0] === 0 ? s : '"' + s.replace(/"/g, '""') + '"';
+  };
+  const identLength = (s: string): number => s.length + (s.match(/"/g)?.length ?? 0) + 2;
+  const n = columns.reduce((a, c) => a + identLength(c.name) + 5, identLength(name));
+  const [sep, sep2, end] = n < 50 ? ['', ',', ')'] : ['\n  ', ',\n  ', '\n)'];
+  return `CREATE TABLE ${ident(name)}(${sep}${columns.map((c) => ident(c.name) + (c.declaredType ? ' ' + c.declaredType : '')).join(sep2)}${end}`;
 }
