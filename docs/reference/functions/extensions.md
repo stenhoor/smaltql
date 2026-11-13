@@ -41,6 +41,11 @@ This page lists them; each links to its page, with its arguments, NULL handling,
 | [`array_to_string(L, SEP)`](./list/array_to_string) | The elements as text |
 | [`array_sort`](./list/array_sort), [`array_distinct`](./list/array_distinct), [`array_reverse`](./list/array_reverse) | The elements sorted, without repeats, or reversed |
 | [`list_sum`](./list/list_sum), [`list_mean`](./list/list_mean), [`list_min`](./list/list_min), [`list_max`](./list/list_max) | The sum, mean, least or greatest number |
+| [`list_median`](./list/list_median), [`list_std`](./list/list_std), [`list_var`](./list/list_var) | The median, standard deviation or variance |
+| [`list_arg_min`](./list/list_arg_min), [`list_arg_max`](./list/list_arg_max), [`list_n_unique`](./list/list_n_unique), [`list_count_matches`](./list/list_count_matches) | Positions and counts of elements |
+| [`list_all`](./list/list_all), [`list_any`](./list/list_any) | Whether every or any element is true |
+| [`list_drop_nulls`](./list/list_drop_nulls), [`list_shift`](./list/list_shift), [`list_diff`](./list/list_diff), [`list_gather`](./list/list_gather), [`list_gather_every`](./list/list_gather_every), [`list_sample`](./list/list_sample), [`list_item`](./list/list_item) | Changing a list |
+| [`list_union`](./list/list_union), [`list_intersect`](./list/list_intersect), [`list_except`](./list/list_except), [`list_symmetric_except`](./list/list_symmetric_except) | Lists as sets, in first-appearance order |
 | [`array_agg(X)`, `implode(X)`](./list/array_agg) | An aggregate: a group's values as a list |
 | [`unnest(L)`](./list/unnest) | A table function: one row per element |
 

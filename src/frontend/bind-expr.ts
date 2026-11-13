@@ -407,7 +407,7 @@ function bindCall(e: CallExpr, scope: CompileScope): BoundExpr {
     throw new SmaltError('SMALT_ERROR', `no such function: ${name}`);
   }
   const n = e.args.length;
-  if (!takesArgs(def, n)) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
+  if (!takesArgs(def, n) || n > (SPELLING_MAX_ARGS[name] ?? Infinity)) throw new SmaltError('SMALT_ERROR', `wrong number of arguments to function ${name}()`);
   if (name === 'likelihood') {
     // SQLite: the probability must be a REAL literal (not an integer, not negated) from 0.0 to 1.0.
     const p = e.args[1];
@@ -445,6 +445,12 @@ export function forColumn<E>(e: E, storageType: string): E {
 const STORED_TYPED = new Set(['LIST', 'STRUCT', 'DATE', 'DATETIME', 'TIME', 'DURATION']);
 
 /**
+ * The most arguments a SQL spelling takes when the engine function behind it takes more: these names have other
+ * meanings for further arguments elsewhere (Postgres's array_to_string(L, SEP, NULL_TEXT)), so SQL keeps them out.
+ */
+const SPELLING_MAX_ARGS: Readonly<Record<string, number>> = { array_to_string: 2, array_contains: 2, array_sort: 2 };
+
+/**
  * SQL spellings that are more than another name (smaltdb ADR 0022): Postgres's `regexp_replace` replaces every match
  * with the `g` flag, and `isnan` compares with NaN, which equals itself in the engine's order.
  */
@@ -477,6 +483,30 @@ function bindSpelling(name: string, args: readonly Expr[], scope: CompileScope):
       const [l, i] = [listArg(bindExpr(args[0]!, scope)), bindExpr(args[1]!, scope)];
       const index: BoundExpr = { k: 'case', whens: [{ when: call('cmp_gt', [i, lit(0, 'int')], 'int'), then: call('sub', [i, lit(1, 'int')], 'int') }, { when: call('cmp_lt', [i, lit(0, 'int')], 'int'), then: i }], else: lit(null, 'null'), type: 'int' };
       return withMeaning(sqlValue(call('list_get', [l, index], elementType(typeOf(l))), undefined), plain);
+    }
+    case 'list_arg_min':
+    case 'list_arg_max': {
+      // A position from 1, as list_extract takes; the engine's counts from 0.
+      arity(1, 1);
+      const pos = call(name, [listArg(bindExpr(args[0]!, scope))], 'int');
+      return withMeaning(call('add', [pos, lit(1, 'int')], 'int'), plain);
+    }
+    case 'list_gather': {
+      // The elements at a list of positions from 1 (negative from the end; 0 or out of range is NULL), as list_extract.
+      arity(2, 2);
+      const [l, ix] = [listArg(bindExpr(args[0]!, scope)), listArg(bindExpr(args[1]!, scope))];
+      const el = { k: 'element', part: 'value', depth: 0, type: elementType(typeOf(ix)) } as BoundExpr;
+      const zero = lit(0, 'int');
+      const fromZero: BoundExpr = { k: 'case', whens: [{ when: call('cmp_gt', [el, zero], 'int'), then: call('sub', [el, lit(1, 'int')], 'int') }, { when: call('cmp_lt', [el, zero], 'int'), then: el }], else: lit(null, 'null'), type: 'int' };
+      const indexes = { k: 'each', mode: 'map', list: ix, body: fromZero, type: 'list<int>' } as BoundExpr;
+      return withMeaning(sqlValue(call('list_gather', [l, indexes], typeOf(l)), undefined), plain);
+    }
+    case 'list_gather_every': {
+      // Every N-th element from position FROM (default 1, the first).
+      arity(2, 3);
+      const [l, n] = [listArg(bindExpr(args[0]!, scope)), bindExpr(args[1]!, scope)];
+      const from = args[2] ? call('sub', [bindExpr(args[2], scope), lit(1, 'int')], 'int') : lit(0, 'int');
+      return withMeaning(sqlValue(call('list_gather_every', [l, n, from], typeOf(l)), undefined), plain);
     }
     case 'array_slice': {
       // DuckDB: elements FROM to TO, both from 1 and included. The engine's list_slice takes an offset from 0 and a length.
