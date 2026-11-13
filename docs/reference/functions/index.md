@@ -11,7 +11,7 @@ Every function smaltdb accepts, in alphabetical order. Names are case-insensitiv
 | [Aggregate functions](./aggregate/) | `count`, `sum`, `total`, `avg`, `min`, `max`, `group_concat`, `string_agg`; statistics: `stddev`, `variance`, `corr`, `median`, `percentile`, …; `DISTINCT` and `FILTER` |
 | [Window functions](./window/) | Ranking and navigation functions, aggregates over windows, `OVER` syntax |
 | [Dates, times and zones](./dates/) | `make_date`, `make_datetime`, date parts, `EXTRACT`, `date_trunc`, `strptime`, `offset_by`, typed literals, `INTERVAL`, time zones |
-| [List functions](./list/) | `ARRAY[…]`, `cardinality`, `list_extract`, `array_slice`, `array_contains`, `= ANY`, `array_sort`, `list_sum`, `array_agg`, `unnest` |
+| [List functions](./list/) | `ARRAY[…]`, `cardinality`, `list_extract`, `array_slice`, `array_contains`, `= ANY`, `array_sort`, `list_sum`, `list_median`, `list_gather`, `list_union`, `array_agg`, `unnest` |
 | [Regular expressions](./regex/) | `REGEXP`, `regexp_like`, `regexp_substr`, `regexp_replace`, and the engine's `regex_*` names |
 | [smaltdb extensions](./extensions) | Every function SQLite doesn't have, with links to its entry |
 | [Table-valued functions](./table-valued/) | `read_csv`, `read_json`, `read_parquet` (from [plugins](../../guide/plugins)), `pragma_*` |
@@ -99,11 +99,31 @@ Operators (`||`, `LIKE`, `GLOB`, arithmetic, comparisons), `CASE` and `CAST` are
 | [`length(X)`](./string/length) | scalar | Characters in text, bytes in a blob |
 | [`likelihood(X, P)`](./scalar/likelihood) | scalar | Returns `X` (planner hint, ignored) |
 | [`likely(X)`](./scalar/likely) | scalar | Returns `X` (planner hint, ignored) |
+| [`list_all(L)`](./list/list_all) | scalar | Whether every element is true |
+| [`list_any(L)`](./list/list_any) | scalar | Whether any element is true |
+| [`list_arg_max(L)`](./list/list_arg_max) | scalar | Position of the greatest element, from 1 |
+| [`list_arg_min(L)`](./list/list_arg_min) | scalar | Position of the least element, from 1 |
+| [`list_count_matches(L, V)`](./list/list_count_matches) | scalar | Elements equal to a value |
+| [`list_diff(L, N)`](./list/list_diff) | scalar | Differences between elements |
+| [`list_drop_nulls(L)`](./list/list_drop_nulls) | scalar | A list without its NULLs |
+| [`list_except(A, B)`](./list/list_except) | scalar | Elements of one list not in another |
 | [`list_extract(L, I)`](./list/list_extract) | scalar | Element of a list, from 1 |
+| [`list_gather(L, POSITIONS)`](./list/list_gather) | scalar | Elements at positions, from 1 |
+| [`list_gather_every(L, N, FROM)`](./list/list_gather_every) | scalar | Every N-th element |
+| [`list_intersect(A, B)`](./list/list_intersect) | scalar | Elements of both lists |
+| [`list_item(L)`](./list/list_item) | scalar | The element of a list of one |
 | [`list_max(L)`](./list/list_max) | scalar | Greatest number in a list |
 | [`list_mean(L)`](./list/list_mean) | scalar | Mean of a list |
+| [`list_median(L)`](./list/list_median) | scalar | Median of a list |
 | [`list_min(L)`](./list/list_min) | scalar | Least number in a list |
+| [`list_n_unique(L)`](./list/list_n_unique) | scalar | Distinct elements of a list |
+| [`list_sample(L, N)`](./list/list_sample) | scalar | Elements chosen at random |
+| [`list_shift(L, N)`](./list/list_shift) | scalar | Elements moved later or earlier |
+| [`list_std(L, DDOF)`](./list/list_std) | scalar | Standard deviation of a list |
 | [`list_sum(L)`](./list/list_sum) | scalar | Sum of a list |
+| [`list_symmetric_except(A, B)`](./list/list_symmetric_except) | scalar | Elements of one list but not both |
+| [`list_union(A, B)`](./list/list_union) | scalar | Elements of either list |
+| [`list_var(L, DDOF)`](./list/list_var) | scalar | Variance of a list |
 | [`ln(X)`](./math/ln) | scalar | Natural logarithm |
 | [`log(X)`, `log(B, X)`](./math/log) | scalar | Base-10 logarithm, or to base `B` |
 | [`log10(X)`](./math/log10) | scalar | Base-10 logarithm |
