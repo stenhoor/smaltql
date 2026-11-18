@@ -203,10 +203,42 @@ Columnar tables can neither have foreign keys nor be referenced by one. Foreign 
 | `STRICT` | accepted; every table is already STRICT |
 | `WITH (storage = 'row')` | row storage in a B+tree (the default) |
 | `WITH (storage = 'columnar')` | columnar storage for analytics; see below |
+| `WITH (history = true)` | keep the table's past versions, read with `FOR SYSTEM_TIME AS OF`; see [below](#history) |
 | `LOOSE` | not supported (`SMALT_UNSUPPORTED`) |
 | `WITHOUT ROWID` | not supported (`SMALT_UNSUPPORTED`) |
 
-Options are separated by commas: `) STRICT, WITH (storage = 'row')`. `WITH` takes no other keys (`unknown table option: x`).
+Options are separated by commas: `) STRICT, WITH (storage = 'row')`. `WITH` takes `storage` and `history`, no other
+keys (`unknown table option: x`).
+
+### History {#history}
+
+`WITH (history = true)` keeps the table's past versions (smaltdb's
+[version history](https://smaltdb.dev/reference/engine/schema#history)), so a query can read it as any commit left it:
+`SELECT … FROM t FOR SYSTEM_TIME AS OF …` ([SELECT](./select#as-of)). `true` (or `'on'`) is the engine's default method,
+`'versions'`; `'log'` keeps a change log instead, faster to read near the present and slower further back. Every change
+is kept with its commit, in the same transaction; a rolled-back transaction leaves none.
+
+- **Set when the table is created**, for row tables (not `TEMP` or columnar ones).
+- **`ALTER TABLE`** works: the history follows a renamed table and added, renamed or dropped columns (a dropped column's
+  past values go with it; an added one reads NULL before it existed).
+- **Cost:** the table's own reads don't change; writes keep the old versions too (about 1.4× for inserts and 2.3× for
+  updates and deletes with `'versions'`).
+
+```sql
+CREATE TABLE stock(item TEXT PRIMARY KEY, qty INTEGER) WITH (history = true);
+INSERT INTO stock VALUES ('apples', 10);
+UPDATE stock SET qty = 7;
+UPDATE stock SET qty = 3;
+SELECT 1 AS commit_no, qty FROM stock FOR SYSTEM_TIME AS OF COMMIT (SELECT min(id) FROM smalt_commits)
+UNION ALL SELECT 2, qty FROM stock FOR SYSTEM_TIME AS OF COMMIT (SELECT min(id) + 1 FROM smalt_commits)
+UNION ALL SELECT 3, qty FROM stock FOR SYSTEM_TIME AS OF COMMIT (SELECT min(id) + 2 FROM smalt_commits)
+```
+
+| commit_no | qty |
+| --- | --- |
+| 1 | 10 |
+| 2 | 7 |
+| 3 | 3 |
 
 ### Columnar tables
 

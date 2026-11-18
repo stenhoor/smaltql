@@ -1346,6 +1346,15 @@ class FrontEnd {
     const db = table.schema === 'temp' ? 'temp' : item.schema?.toLowerCase() === 'main' ? 'main' : undefined;
     const scan: Mutable<Extract<PlanOp, { op: 'scan' }>> = db ? { op: 'scan', table: table.name, db, columns } : { op: 'scan', table: table.name, columns };
     if (item.indexedBy !== undefined) scan.indexedBy = item.indexedBy;
+    if (item.asOf) {
+      // FOR SYSTEM_TIME AS OF (smaltdb ADR 0033 step 6a): a commit id, or a time as SQLite's date functions read it,
+      // which the engine takes in milliseconds since 1970.
+      const at = bindAst(item.asOf.expr, this.compileScope(new FeScope(null)));
+      scan.asOf =
+        item.asOf.kind === 'commit'
+          ? { commit: at as PlanExpr }
+          : { time: { k: 'call', fn: 'mul', args: [{ k: 'call', fn: 'unixepoch', args: [at, { k: 'lit', value: 'subsec', type: 'text' }], type: 'real' }, { k: 'lit', value: 1000, type: 'int' }], type: 'real' } as PlanExpr };
+    }
     if (!item.sample) return scan;
     // TABLESAMPLE (smaltdb ADR 0022): the engine's sample, that percent of the rows, without replacement, in their order.
     const none = this.compileScope(new FeScope(null));
@@ -1500,6 +1509,9 @@ class FrontEnd {
     };
     switch (o.op) {
       case 'scan':
+        // FOR SYSTEM_TIME AS OF: its expression may hold a subquery.
+        if (o.asOf) o.asOf = 'commit' in o.asOf ? { commit: ex(o.asOf.commit) } : { time: ex(o.asOf.time) };
+        break;
       case 'working':
         break;
       case 'source':

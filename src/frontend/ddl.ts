@@ -187,7 +187,8 @@ export function toTableDef(stmt: CreateTableStmt, text: string, catalog: BindCon
     }
   }
   const checks: CheckDef[] = checkExprs.map((c) => ({ ...(c.name !== undefined ? { name: c.name } : {}), text: textOf(c.expr, text), ...(c.ofColumn !== undefined ? { ofColumn: c.ofColumn } : {}) }));
-  return { name: stmt.name, columns, keys, checks, foreignKeys: fks, storage: tableStorage(stmt) };
+  const history = tableHistory(stmt);
+  return { name: stmt.name, columns, keys, checks, foreignKeys: fks, storage: tableStorage(stmt), ...(history ? { history } : {}) };
 }
 
 /**
@@ -235,10 +236,25 @@ export function checkNewTable(stmt: CreateTableStmt): void {
   );
 }
 
+/**
+ * `CREATE TABLE … WITH (history = 'versions' | 'log' | true)` (smaltdb ADR 0033 step 6a): the table keeps its past
+ * versions, read with `FOR SYSTEM_TIME AS OF`. `true` (or 'on') is the engine's default method, `versions` (step 7);
+ * false, 'off' or no option keeps none.
+ */
+export function tableHistory(stmt: CreateTableStmt): 'versions' | 'log' | undefined {
+  const v = stmt.with?.history;
+  if (v === undefined || v === null || v === 0) return undefined;
+  const s = String(v).toLowerCase();
+  if (v === 1 || s === 'true' || s === 'on' || s === 'versions') return 'versions';
+  if (s === 'log') return 'log';
+  if (s === 'false' || s === 'off') return undefined;
+  throw new SmaltError('SMALT_ERROR', `history must be 'versions', 'log', true or false`);
+}
+
 /** `CREATE TABLE … WITH (storage = 'row' | 'columnar')` (validates the options). */
 export function tableStorage(stmt: CreateTableStmt): 'row' | 'columnar' {
   const opts = stmt.with ?? {};
-  for (const k of Object.keys(opts)) if (k !== 'storage') throw new SmaltError('SMALT_ERROR', `unknown table option: ${k}`);
+  for (const k of Object.keys(opts)) if (k !== 'storage' && k !== 'history') throw new SmaltError('SMALT_ERROR', `unknown table option: ${k}`);
   const storage = String(opts.storage ?? 'row').toLowerCase();
   if (storage !== 'row' && storage !== 'columnar') throw new SmaltError('SMALT_ERROR', `storage must be 'row' or 'columnar'`);
   return storage;
