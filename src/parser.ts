@@ -759,10 +759,26 @@ class Parser {
       if (named) ref.named = named;
       return ref;
     }
+    const asOf = this.optAsOf();
     const alias = this.isTableSample() ? undefined : this.optAlias();
     const indexedBy = this.optIndexedBy();
     const sample = this.optTableSample();
-    return { kind: 'table', pos, schema: q.schema, name: q.name, alias, indexedBy, ...(sample ? { sample } : {}), end: this.ends[this.p - 1] };
+    return { kind: 'table', pos, schema: q.schema, name: q.name, alias, indexedBy, ...(sample ? { sample } : {}), ...(asOf ? { asOf } : {}), end: this.ends[this.p - 1] };
+  }
+
+  /**
+   * `FOR SYSTEM_TIME AS OF [COMMIT | TRANSACTION | TIMESTAMP] expr` after a table name (SQL:2011's period
+   * specification, with MariaDB's TRANSACTION): a commit id, or a time.
+   */
+  private optAsOf(): A.TableRef['asOf'] {
+    if (!(this.isKw('FOR') && this.kinds[this.p + 1] === TK_ID && String(this.vals[this.p + 1]).toUpperCase() === 'SYSTEM_TIME')) return undefined;
+    this.p += 2;
+    this.expectKw('AS');
+    this.expectKw('OF');
+    let kind: 'commit' | 'time' = 'time';
+    if (this.acceptKw('COMMIT') || this.acceptKw('TRANSACTION')) kind = 'commit';
+    else this.acceptWord('TIMESTAMP');
+    return { kind, expr: this.expr() };
   }
 
   private optIndexedBy(): string | null | undefined {

@@ -357,6 +357,34 @@ SELECT count(*) AS rows FROM n TABLESAMPLE BERNOULLI (10) REPEATABLE (1);
 | --- |
 | 10 |
 
+## FOR SYSTEM_TIME AS OF {#as-of}
+
+`FROM t FOR SYSTEM_TIME AS OF …` reads a table that [keeps history](./create-table#history) as it was in the past
+(SQL:2011's syntax, with MariaDB's `TRANSACTION`). It follows the table's name, before its alias:
+
+- `AS OF COMMIT n` (or `TRANSACTION n`): as commit `n` left it. Commit ids are smaltdb's; `smalt_commits` lists the
+  commits that wrote history, with their times.
+- `AS OF expr` (or `AS OF TIMESTAMP expr`): as the last commit at or before that time, read as SQLite's date functions
+  read it (`'2026-11-17 14:30:00'` is UTC). Before the table's first commit it is empty.
+
+The expression may hold parameters and subqueries. Joins, views and subqueries can mix the present and the past.
+Reading a time whose history was forgotten is an error (`SMALT_RANGE`).
+
+```sql
+CREATE TABLE price(item TEXT PRIMARY KEY, cents INTEGER) WITH (history = true);
+INSERT INTO price VALUES ('tea', 250), ('cake', 400);
+UPDATE price SET cents = 300 WHERE item = 'tea';
+SELECT now.item, before.cents AS was, now.cents AS is_now
+FROM price AS now
+JOIN price FOR SYSTEM_TIME AS OF COMMIT (SELECT min(id) FROM smalt_commits) AS before USING (item)
+ORDER BY now.item
+```
+
+| item | was | is_now |
+| --- | --- | --- |
+| cake | 400 | 400 |
+| tea | 250 | 300 |
+
 ## DISTINCT ON {#distinct-on}
 
 `SELECT DISTINCT ON (exprs) …` keeps one row of each set of rows whose `exprs` are equal: the first in `ORDER BY`'s order (a smaltdb extension, as in Postgres). The rows come in that order. Put the `exprs` first in `ORDER BY`, then what picks the row; the `exprs` need not be result columns.

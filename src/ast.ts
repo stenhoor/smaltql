@@ -271,6 +271,11 @@ export interface TableRef extends Node {
   indexedBy?: string | null;
   /** `TABLESAMPLE BERNOULLI (percent) [REPEATABLE (seed)]`. */
   sample?: TableSample;
+  /**
+   * `FOR SYSTEM_TIME AS OF [COMMIT | TRANSACTION | TIMESTAMP] expr` (SQL:2011, MariaDB): a table that keeps history,
+   * as it was after a commit (`commit`) or at a time (`time`; smaltdb ADR 0033 step 6a).
+   */
+  asOf?: { kind: 'commit' | 'time'; expr: Expr };
   unpivot?: Unpivot;
   pivot?: Pivot;
 }

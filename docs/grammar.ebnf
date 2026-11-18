@@ -52,7 +52,9 @@ join-constraint ::= 'ON' expr | 'USING' '(' name (',' name)* ')'
 
 from-item ::= table-ref | table-function | subquery-ref | '(' from-clause ')'
 
-table-ref ::= qualified-name ('AS'? name)? ('INDEXED' 'BY' name | 'NOT' 'INDEXED')? table-sample? pivot-clause?
+table-ref ::= qualified-name system-time? ('AS'? name)? ('INDEXED' 'BY' name | 'NOT' 'INDEXED')? table-sample? pivot-clause?
+
+system-time ::= 'FOR' 'SYSTEM_TIME' 'AS' 'OF' ('COMMIT' | 'TRANSACTION' | 'TIMESTAMP')? expr
 
 qualified-name ::= (name '.')? name
 

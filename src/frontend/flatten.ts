@@ -157,6 +157,8 @@ function expand(select: SelectStmt, columnNames: string[] | undefined, refName: 
   const leaves = links.map((l) => {
     if (l.item.kind !== 'table') decline();
     const t = l.item as TableRef;
+    // The merged reference is rebuilt from the table alone: one that reads the past or samples stays a FROM subquery.
+    if (t.asOf || t.sample) decline();
     if (t.schema && t.schema.toLowerCase() !== 'main') decline();
     if (!t.schema && ctx.isCte(t.name)) decline();
     const table = ctx.getTable(t.name) ?? decline();
